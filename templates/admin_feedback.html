@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Admin - Feedback</title>
+</head>
+<body>
+    <h2>All User Feedback</h2>
+    <table border="1">
+        <tr><th>Username</th><th>Rating</th><th>Comments</th></tr>
+        {% for fb in feedback %}
+        <tr>
+            <td>{{ fb.username }}</td>
+            <td>{{ fb.rating or 'N/A' }}</td>
+            <td>{{ fb.comments }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    <a href="{{ url_for('admin_dashboard') }}">Back to Dashboard</a>
+</body>
+</html>

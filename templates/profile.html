@@ -1,0 +1,45 @@
+{% include 'navbar.html' %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>User Profile</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" />
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+        .profile-card {
+            max-width: 500px;
+            margin: 80px auto;
+            padding: 30px;
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .profile-info p {
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+        .profile-info strong {
+            width: 150px;
+            display: inline-block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="profile-card">
+            <h3 class="text-center mb-4">User Profile</h3>
+            <div class="profile-info">
+                <p><strong>Username:</strong> {{ username }}</p>
+                <p><strong>First Name:</strong> {{ first_name }}</p>
+                <p><strong>Last Name:</strong> {{ last_name }}</p>
+                <p><strong>Email:</strong> {{ email }}</p>
+                <p><strong>Phone No:</strong> {{ phone }}</p>
+                <!-- <p><strong>Password Hint:</strong> {{ password_hint }}</p> -->
+            </div>
+        </div>
+    </div>
+</body>
+</html>

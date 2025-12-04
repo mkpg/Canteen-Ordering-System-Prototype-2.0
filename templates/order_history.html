@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Order History</title>
+</head>
+<body>
+    <h2>Your Completed Orders</h2>
+    {% if orders %}
+        <ul>
+            {% for order in orders %}
+                <li>
+                    {{ order.product_name }} - ₹{{ order.total_price }} 
+                    (Qty: {{ order.quantity }}) 
+                    | Completed on: {{ order.completed_time.strftime('%Y-%m-%d %H:%M:%S') }}
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>No completed orders found.</p>
+    {% endif %}
+    <a href="{{ url_for('menu') }}">Back to Menu</a>
+</body>
+</html>
