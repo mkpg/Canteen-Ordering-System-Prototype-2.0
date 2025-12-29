@@ -6,3 +6,5 @@ itsdangerous==2.1.2
 python-dotenv==1.0.0
 gunicorn==21.2.0
 dnspython==2.4.2
+certifi==2023.11.17
+pymongo[srv]==4.6.0

@@ -5,6 +5,7 @@ Flask Backend with MongoDB
 
 import os
 import re
+import certifi
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from werkzeug.security import generate_password_hash, check_password_hash
 from pymongo import MongoClient
@@ -23,9 +24,9 @@ app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', 'your-super-secret-key-change-in-production')
 ADMIN_CODE = os.getenv('ADMIN_CODE', '2000')
 
-# MongoDB setup
+# MongoDB setup with SSL certificate for Atlas
 MONGO_URI = os.getenv('MONGO_URI', 'mongodb://localhost:27017/')
-client = MongoClient(MONGO_URI)
+client = MongoClient(MONGO_URI, tlsCAFile=certifi.where())
 db = client['canteen_app']
 users_col = db['users']
 feedback_col = db['feedback']
@@ -831,4 +832,5 @@ def admin_feedback():
 # ==================== MAIN ====================
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=False)
