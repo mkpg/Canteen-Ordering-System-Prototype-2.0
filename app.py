@@ -1,21 +1,26 @@
-import os
 from flask import Flask
 from pymongo import MongoClient
-from dotenv import load_dotenv
+import os
 
-# Load environment variables
-load_dotenv()
-
+# Initialize Flask application
 app = Flask(__name__)
 
-# Secure session management
-app.secret_key = os.getenv('SECRET_KEY', 'your-fallback-secret-key')  # Replace fallback with a strong key
+# Configuration for MongoDB (using MongoDB Atlas)
+mongo_uri = os.getenv("MONGO_URI", "")
+if not mongo_uri:
+    raise ValueError("The MONGO_URI environment variable is not set.")
+client = MongoClient(mongo_uri)
+db = client.get_database()
 
-# MongoDB connection (ensure environment variable is properly set)
-MONGO_URI = os.getenv('MONGO_URI')
-if not MONGO_URI:
-    raise RuntimeError("MONGO_URI environment variable is not set.")
+# Set the SECRET_KEY for session management and security
+app.config['SECRET_KEY'] = os.getenv("SECRET_KEY", "change_this_to_a_random_secret_key")
 
-# MongoDB client setup
-client = MongoClient(MONGO_URI)
-db = client.get_database()  # Defaults to the database specified in the URI
+# Define a basic route
+@app.route('/')
+def home():
+    return "Hello, World! The app is connected to MongoDB Atlas."
+
+# Run the app on specified PORT (fallback to 5000)
+if __name__ == "__main__":
+    port = int(os.getenv("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
