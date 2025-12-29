@@ -24,7 +24,7 @@ app.secret_key = os.getenv('SECRET_KEY', 'your-super-secret-key-change-in-produc
 ADMIN_CODE = os.getenv('ADMIN_CODE', '2000')
 
 # MongoDB setup
-MONGO_URI = os.getenv('MONGO_URI', 'mongodb://localhost:27017/')
+MONGO_URI = os.getenv("MONGO_URI")
 client = MongoClient(MONGO_URI)
 db = client['canteen_app']
 users_col = db['users']
