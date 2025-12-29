@@ -1,94 +1,118 @@
 {% include 'navbar.html' %}
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Payment</title>
+    <title>Checkout - MyCanteenApp</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
-    <style>
-        .bill-item {
-            border-bottom: 1px solid #ddd;
-            padding: 10px 0;
-        }
-
-        .bill-item:last-child {
-            border-bottom: none;
-        }
-
-        .bill-item .quantity {
-            font-size: 14px;
-            color: #666;
-        }
-
-        .total-amount {
-            font-size: 24px;
-            font-weight: bold;
-            color: #007bff;
-        }
-
-        .qr-section {
-            text-align: center;
-            margin-top: 20px;
-            display: none;
-        }
-
-        .qr-code {
-            margin: 20px auto;
-            display: block;
-            width: 150px;
-            height: 150px;
-        }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 </head>
+
 <body>
     <div class="container my-5">
-        <h1 class="text-center mb-5">Payment</h1>
-        <div class="card">
-            <div class="card-header">Your Order</div>
-            <div class="card-body">
-                <div class="bill">
-                    {% for order in orders %}
-                    <div class="bill-item">
-                        <div class="d-flex justify-content-between">
-                            <span>{{ order.product_name }}</span>
-                            <span>₹{{ order.total_price }}</span>
-                        </div>
-                        <div class="quantity">
-                            Quantity: {{ order.quantity }} -
-                            Customizations: {{ order.customizations }}
-                        </div>
+        <div class="page-header">
+            <h1>🛒 Your Cart</h1>
+            <p class="text-muted">Review your order before payment</p>
+        </div>
+
+        {% if orders %}
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">Order Items</h5>
                     </div>
-                    {% endfor %}
+                    <div class="card-body">
+                        {% for order in orders %}
+                        <div class="bill-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-1">{{ order.product_name }}</h6>
+                                <small class="text-muted">
+                                    Qty: {{ order.quantity }} × ₹{{ order.price }}
+                                    {% if order.customizations %}
+                                    <br>📝 {{ order.customizations }}
+                                    {% endif %}
+                                </small>
+                            </div>
+                            <div class="d-flex align-items-center">
+                                <span class="font-weight-bold mr-3">₹{{ order.total_price }}</span>
+                                <form action="{{ url_for('remove_order', order_id=order._id) }}" method="POST"
+                                    onsubmit="return confirm('Remove this item from cart?');">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                                        ✕ Remove
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
                 </div>
-                <div class="d-flex justify-content-between mt-4">
-                    <span>Total Amount:</span>
-                    <span class="total-amount">₹{{ total_amount }}</span>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="card">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0">Order Summary</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between mb-3">
+                            <span>Items:</span>
+                            <span>{{ orders|length }}</span>
+                        </div>
+                        <hr>
+                        <div class="d-flex justify-content-between">
+                            <span class="h5">Total:</span>
+                            <span class="h5 text-primary font-weight-bold">₹{{ total_amount }}</span>
+                        </div>
+
+                        <form method="POST" action="{{ url_for('process_payment') }}" class="mt-4">
+                            <div class="form-group">
+                                <label for="payment-method">Payment Method:</label>
+                                <select class="form-control" id="payment-method" name="payment_method"
+                                    onchange="handlePaymentMethodChange()">
+                                    <option value="credit_card">Credit Card</option>
+                                    <option value="debit_card">Debit Card</option>
+                                    <option value="upi">UPI</option>
+                                    <option value="qr_code">QR Code</option>
+                                </select>
+                            </div>
+
+                            <div id="qr-section" style="display: none;" class="text-center mb-3">
+                                <p class="mb-2">Scan to Pay:</p>
+                                <img src="{{ url_for('static', filename='a.jpeg') }}" alt="QR Code"
+                                    style="width: 150px; height: 150px; border-radius: 8px;">
+                            </div>
+
+                            <button type="submit" class="btn btn-success btn-block btn-lg">
+                                💳 Pay ₹{{ total_amount }}
+                            </button>
+                        </form>
+                    </div>
                 </div>
             </div>
         </div>
-
-        <form method="POST" action="{{ url_for('process_payment') }}" class="mt-4">
-            <div class="form-group">
-                <label for="payment-method">Payment Method:</label>
-                <select class="form-control" id="payment-method" name="payment_method" required onchange="handlePaymentMethodChange()">
-                    <option value="credit_card">Credit Card</option>
-                    <option value="debit_card">Debit Card</option>
-                    <option value="paypal">PayPal</option>
-                    <option value="qr_code">QR Code</option>
-                </select>
+        {% else %}
+        <div class="empty-state card p-5">
+            <div class="text-center">
+                <h1 class="display-1 mb-3">🛒</h1>
+                <h4>Your cart is empty</h4>
+                <p class="text-muted">Add some delicious items from our menu!</p>
+                <a href="{{ url_for('menu') }}" class="btn btn-primary btn-lg mt-3">
+                    Browse Menu
+                </a>
             </div>
+        </div>
+        {% endif %}
 
-            <div id="qr-section" class="qr-section">
-                <h2>Scan QR Code to Pay</h2>
-                <img src="{{ url_for('static', filename='a.jpeg') }}" alt="QR Code" class="qr-code">
-            </div>
-
-            <button type="submit" class="btn btn-success btn-block">Pay Now</button>
-        </form>
+        <div class="text-center mt-4">
+            <a href="{{ url_for('menu') }}" class="btn btn-outline-primary">
+                ← Continue Shopping
+            </a>
+        </div>
     </div>
 
-    <!-- JS Dependencies -->
     <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.3/dist/umd/popper.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
@@ -100,4 +124,5 @@
         }
     </script>
 </body>
+
 </html>

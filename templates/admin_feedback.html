@@ -1,20 +1,104 @@
+{% include 'navbar.html' %}
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-    <title>Admin - Feedback</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Feedback - Admin</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 </head>
+
 <body>
-    <h2>All User Feedback</h2>
-    <table border="1">
-        <tr><th>Username</th><th>Rating</th><th>Comments</th></tr>
-        {% for fb in feedback %}
-        <tr>
-            <td>{{ fb.username }}</td>
-            <td>{{ fb.rating or 'N/A' }}</td>
-            <td>{{ fb.comments }}</td>
-        </tr>
-        {% endfor %}
-    </table>
-    <a href="{{ url_for('admin_dashboard') }}">Back to Dashboard</a>
+    <div class="container my-5">
+        <div class="page-header">
+            <h1>⭐ User Feedback</h1>
+            <p class="text-muted">View all feedback from customers</p>
+        </div>
+
+        <!-- Average Rating Card -->
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <div class="card text-center">
+                    <div class="card-body py-4">
+                        <h6 class="text-muted mb-2">Average Rating</h6>
+                        <div class="display-4 font-weight-bold text-warning">
+                            {{ avg_rating }} ⭐
+                        </div>
+                        <small class="text-muted">Based on {{ total_feedback }} reviews</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {% if feedback %}
+        <div class="card">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>User</th>
+                                <th>Rating</th>
+                                <th>Comments</th>
+                                <th>Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for fb in feedback %}
+                            <tr>
+                                <td><strong>{{ fb.username }}</strong></td>
+                                <td>
+                                    <span class="star-rating">
+                                        {% for i in range(5) %}
+                                        {% if i < fb.rating %} <span>★</span>
+                                    {% else %}
+                                    <span class="empty">★</span>
+                                    {% endif %}
+                                    {% endfor %}
+                                    </span>
+                                    <span class="ml-2 text-muted">({{ fb.rating }}/5)</span>
+                                </td>
+                                <td>
+                                    {% if fb.comments %}
+                                    {{ fb.comments }}
+                                    {% else %}
+                                    <span class="text-muted">No comments</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if fb.submitted_at %}
+                                    {{ fb.submitted_at.strftime('%b %d, %Y') }}
+                                    <br><small class="text-muted">{{ fb.submitted_at.strftime('%I:%M %p') }}</small>
+                                    {% else %}
+                                    N/A
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="empty-state card p-5">
+            <div class="text-center">
+                <h1 class="display-1 mb-3">⭐</h1>
+                <h4>No feedback yet</h4>
+                <p class="text-muted">Customer feedback will appear here.</p>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="text-center mt-4">
+            <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-primary">← Back to Dashboard</a>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 </body>
+
 </html>

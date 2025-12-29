@@ -1,23 +1,94 @@
+{% include 'navbar.html' %}
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-    <title>Order History</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Order History - MyCanteenApp</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 </head>
+
 <body>
-    <h2>Your Completed Orders</h2>
-    {% if orders %}
-        <ul>
-            {% for order in orders %}
-                <li>
-                    {{ order.product_name }} - ₹{{ order.total_price }} 
-                    (Qty: {{ order.quantity }}) 
-                    | Completed on: {{ order.completed_time.strftime('%Y-%m-%d %H:%M:%S') }}
-                </li>
-            {% endfor %}
-        </ul>
-    {% else %}
-        <p>No completed orders found.</p>
-    {% endif %}
-    <a href="{{ url_for('menu') }}">Back to Menu</a>
+    <div class="container my-5">
+        <div class="page-header">
+            <h1>📋 Order History</h1>
+            <p class="text-muted">Track all your past orders</p>
+        </div>
+
+        {% if orders %}
+        <div class="card">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Item</th>
+                                <th>Qty</th>
+                                <th>Total</th>
+                                <th>Status</th>
+                                <th>Order Time</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for order in orders %}
+                            <tr>
+                                <td>
+                                    <strong>{{ order.product_name }}</strong>
+                                    {% if order.customizations %}
+                                    <br><small class="text-muted">{{ order.customizations }}</small>
+                                    {% endif %}
+                                </td>
+                                <td>{{ order.quantity }}</td>
+                                <td>₹{{ order.total_price }}</td>
+                                <td>
+                                    <span class="status-badge status-{{ order.status }}">
+                                        {% if order.status == 'paid' %}💳{% endif %}
+                                        {% if order.status == 'preparing' %}👨‍🍳{% endif %}
+                                        {% if order.status == 'ready' %}🔔{% endif %}
+                                        {% if order.status == 'completed' %}✅{% endif %}
+                                        {{ order.status | capitalize }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {{ order.order_time.strftime('%b %d, %Y') }}
+                                    <br><small class="text-muted">{{ order.order_time.strftime('%I:%M %p') }}</small>
+                                </td>
+                                <td>
+                                    <a href="{{ url_for('track_order', order_id=order._id) }}"
+                                        class="btn btn-sm btn-outline-primary">
+                                        Track
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="empty-state card p-5">
+            <div class="text-center">
+                <h1 class="display-1 mb-3">📋</h1>
+                <h4>No orders yet</h4>
+                <p class="text-muted">Your order history will appear here after you place an order.</p>
+                <a href="{{ url_for('menu') }}" class="btn btn-primary btn-lg mt-3">
+                    Browse Menu
+                </a>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="text-center mt-4">
+            <a href="{{ url_for('menu') }}" class="btn btn-outline-primary">← Back to Menu</a>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 </body>
+
 </html>

@@ -1,103 +1,147 @@
-<!-- {% include 'navbar.html' %}
+{% include 'navbar.html' %}
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
-    <title>Admin Dashboard</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - MyCanteenApp</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 </head>
+
 <body>
-    <div class="container mt-5">
-        <h1 class="text-center mb-5">Admin Dashboard</h1> -->
-
-        <!-- Registered Users Section -->
-        <!-- <h3>Registered Users</h3>
-        <div class="table-responsive">
-            <table class="table table-bordered table-hover">
-                <thead class="thead-light">
-                    <tr>
-                        <th>Username</th>
-                        <th>Is Admin</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for user in users %}
-                    <tr>
-                        <td>{{ user.username }}</td>
-                        <td>{{ 'Yes' if user.is_admin else 'No' }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div> -->
-
-        <!-- Feedback Section -->
-        <!-- <h3 class="mt-5">User Feedback</h3>
-        <div class="table-responsive">
-            <table class="table table-bordered table-hover">
-                <thead class="thead-light">
-                    <tr>
-                        <th>Username</th>
-                        <th>Rating</th>
-                        <th>Comments</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for fb in feedback %}
-                    <tr>
-                        <td>{{ fb.username }}</td>
-                        <td>{{ fb.rating }}</td>
-                        <td>{{ fb.comments }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+    <div class="container my-5">
+        <div class="page-header">
+            <h1>📊 Admin Dashboard</h1>
+            <p class="text-muted">Overview of your canteen operations</p>
         </div>
-    </div>
-</body>
-</html> -->
 
-
-
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Admin Dashboard - Users & Feedback</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-</head>
-<body class="bg-light">
-    <div class="container py-5">
-
-        <!-- Users Section -->
-        <div class="card mb-5">
-            <div class="card-header bg-primary text-white">
-                <h5 class="mb-0">Registered Users</h5>
+        <!-- Statistics Cards -->
+        <div class="row mb-4">
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="stat-card">
+                    <div class="stat-icon">📦</div>
+                    <div class="stat-value">{{ total_orders }}</div>
+                    <div class="stat-label">Total Orders</div>
+                </div>
             </div>
-            <div class="card-body">
-                {% if users %}
-                    <table class="table table-bordered">
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="stat-card">
+                    <div class="stat-icon">💳</div>
+                    <div class="stat-value text-info">{{ paid_orders }}</div>
+                    <div class="stat-label">Paid Orders</div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="stat-card">
+                    <div class="stat-icon">✅</div>
+                    <div class="stat-value text-success">{{ completed_orders }}</div>
+                    <div class="stat-label">Completed</div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="stat-card">
+                    <div class="stat-icon">👥</div>
+                    <div class="stat-value">{{ total_users }}</div>
+                    <div class="stat-label">Total Users</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Revenue Card -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card bg-gradient-primary text-white">
+                    <div class="card-body text-center py-4">
+                        <h5 class="mb-2">💰 Total Revenue</h5>
+                        <h2 class="display-4 font-weight-bold">₹{{ total_revenue }}</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="row mb-4">
+            <div class="col-md-3 col-6 mb-2">
+                <a href="{{ url_for('admin_orders') }}" class="btn btn-primary btn-block py-3">
+                    📦 Manage Orders
+                </a>
+            </div>
+            <div class="col-md-3 col-6 mb-2">
+                <a href="{{ url_for('admin_users') }}" class="btn btn-outline-primary btn-block py-3">
+                    👥 View Users
+                </a>
+            </div>
+            <div class="col-md-3 col-6 mb-2">
+                <a href="{{ url_for('admin_feedback') }}" class="btn btn-outline-primary btn-block py-3">
+                    ⭐ View Feedback
+                </a>
+            </div>
+            <div class="col-md-3 col-6 mb-2">
+                <a href="{{ url_for('menu') }}" class="btn btn-outline-secondary btn-block py-3">
+                    🍽️ Go to Menu
+                </a>
+            </div>
+        </div>
+
+        <!-- Pending Orders Alert -->
+        {% if paid_orders > 0 %}
+        <div class="alert alert-warning">
+            <strong>⚠️ {{ paid_orders }} orders</strong> are waiting to be prepared!
+            <a href="{{ url_for('admin_orders') }}?status=paid" class="alert-link">View now →</a>
+        </div>
+        {% endif %}
+
+        <!-- Recent Orders -->
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Recent Orders</h5>
+                <a href="{{ url_for('admin_orders') }}" class="btn btn-sm btn-outline-primary">View All</a>
+            </div>
+            <div class="card-body p-0">
+                {% if recent_orders %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
                         <thead>
                             <tr>
-                                <th>Username</th>
-                                <th>Admin</th>
+                                <th>User</th>
+                                <th>Item</th>
+                                <th>Total</th>
+                                <th>Status</th>
+                                <th>Time</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {% for user in users %}
-                                <tr>
-                                    <td>{{ user.username }}</td>
-                                    <td>{{ 'Yes' if user.is_admin else 'No' }}</td>
-                                </tr>
+                            {% for order in recent_orders %}
+                            <tr>
+                                <td>{{ order.username }}</td>
+                                <td>{{ order.product_name }}</td>
+                                <td>₹{{ order.total_price }}</td>
+                                <td>
+                                    <span class="status-badge status-{{ order.status }}">
+                                        {{ order.status | capitalize }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {{ order.order_time.strftime('%b %d, %I:%M %p') }}
+                                </td>
+                            </tr>
                             {% endfor %}
                         </tbody>
                     </table>
+                </div>
                 {% else %}
-                    <p>No users found.</p>
+                <div class="text-center py-4 text-muted">
+                    No orders yet
+                </div>
                 {% endif %}
             </div>
         </div>
     </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 </body>
+
 </html>

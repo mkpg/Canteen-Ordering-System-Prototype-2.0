@@ -1,24 +1,105 @@
+{% include 'navbar.html' %}
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-    <title>Admin - Users</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Users - Admin</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 </head>
+
 <body>
-    <h2>All Registered Users</h2>
-    <table border="1">
-        <tr>
-            <th>Username</th><th>Name</th><th>Email</th><th>Phone</th><th>Admin?</th>
-        </tr>
-        {% for user in users %}
-        <tr>
-            <td>{{ user.username }}</td>
-            <td>{{ user.first_name }} {{ user.last_name }}</td>
-            <td>{{ user.email }}</td>
-            <td>{{ user.phone }}</td>
-            <td>{{ 'Yes' if user.is_admin else 'No' }}</td>
-        </tr>
-        {% endfor %}
-    </table>
-    <a href="{{ url_for('admin_dashboard') }}">Back to Dashboard</a>
+    <div class="container my-5">
+        <div class="page-header">
+            <h1>👥 User Management</h1>
+            <p class="text-muted">View and manage registered users</p>
+        </div>
+
+        {% if users %}
+        <div class="card">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Username</th>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Phone</th>
+                                <th>Registered</th>
+                                <th>Role</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user in users %}
+                            <tr>
+                                <td><strong>{{ user.username }}</strong></td>
+                                <td>{{ user.first_name }} {{ user.last_name }}</td>
+                                <td>{{ user.email }}</td>
+                                <td>{{ user.phone }}</td>
+                                <td>
+                                    {% if user.created_at %}
+                                    {{ user.created_at.strftime('%b %d, %Y') }}
+                                    {% else %}
+                                    N/A
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if user.is_admin %}
+                                    <span class="badge badge-primary">Admin</span>
+                                    {% else %}
+                                    <span class="badge badge-secondary">User</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if user.username != current_user %}
+                                    <button type="button" class="btn btn-sm btn-danger"
+                                        onclick="deleteUser('{{ user.username }}')">
+                                        🗑️ Delete
+                                    </button>
+                                    {% else %}
+                                    <span class="text-muted">(You)</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="empty-state card p-5">
+            <div class="text-center">
+                <h1 class="display-1 mb-3">👥</h1>
+                <h4>No users found</h4>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="text-center mt-4">
+            <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-primary">← Back to Dashboard</a>
+        </div>
+    </div>
+
+    <!-- Hidden form for delete -->
+    <form id="deleteForm" method="POST" style="display: none;">
+    </form>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function deleteUser(username) {
+            if (confirm('Are you sure you want to delete user "' + username + '"? This will also delete all their orders and feedback.')) {
+                var form = document.getElementById('deleteForm');
+                form.action = '/admin/delete_user/' + username;
+                form.submit();
+            }
+        }
+    </script>
 </body>
+
 </html>

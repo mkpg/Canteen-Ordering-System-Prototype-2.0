@@ -1,0 +1,203 @@
+{% include 'navbar.html' %}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Track Order - MyCanteenApp</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <style>
+        .status-timeline {
+            position: relative;
+            padding-left: 30px;
+        }
+
+        .timeline-step {
+            position: relative;
+            padding: 20px 0;
+            padding-left: 30px;
+        }
+
+        .timeline-step::before {
+            content: '';
+            position: absolute;
+            left: -21px;
+            top: 25px;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #e2e8f0;
+            border: 3px solid #fff;
+            box-shadow: 0 0 0 2px #e2e8f0;
+            z-index: 1;
+        }
+
+        .timeline-step::after {
+            content: '';
+            position: absolute;
+            left: -14px;
+            top: 41px;
+            width: 2px;
+            height: calc(100% - 16px);
+            background: #e2e8f0;
+        }
+
+        .timeline-step:last-child::after {
+            display: none;
+        }
+
+        .timeline-step.completed::before {
+            background: #10b981;
+            box-shadow: 0 0 0 2px #10b981;
+        }
+
+        .timeline-step.completed::after {
+            background: #10b981;
+        }
+
+        .timeline-step.active::before {
+            background: #2563eb;
+            box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.3);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.3);
+            }
+
+            50% {
+                box-shadow: 0 0 0 8px rgba(37, 99, 235, 0.1);
+            }
+
+            100% {
+                box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.3);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container my-5">
+        <div class="row">
+            <div class="col-lg-6">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">📦 Order Details</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <strong>Item:</strong> {{ order.product_name }}
+                        </div>
+                        <div class="mb-3">
+                            <strong>Quantity:</strong> {{ order.quantity }}
+                        </div>
+                        <div class="mb-3">
+                            <strong>Price:</strong> ₹{{ order.total_price }}
+                        </div>
+                        {% if order.customizations %}
+                        <div class="mb-3">
+                            <strong>Customizations:</strong> {{ order.customizations }}
+                        </div>
+                        {% endif %}
+                        <div class="mb-3">
+                            <strong>Order Time:</strong>
+                            {{ order.order_time.strftime('%B %d, %Y at %I:%M %p') }}
+                        </div>
+                        {% if order.payment_time %}
+                        <div class="mb-3">
+                            <strong>Payment Time:</strong>
+                            {{ order.payment_time.strftime('%B %d, %Y at %I:%M %p') }}
+                        </div>
+                        {% endif %}
+                        {% if order.completed_time %}
+                        <div class="mb-3">
+                            <strong>Completed Time:</strong>
+                            {{ order.completed_time.strftime('%B %d, %Y at %I:%M %p') }}
+                        </div>
+                        {% endif %}
+                        <div class="mb-3">
+                            <strong>Current Status:</strong>
+                            <span class="status-badge status-{{ order.status }} ml-2">
+                                {{ order.status | capitalize }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-6">
+                <div class="card">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">📍 Order Status Timeline</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="status-timeline">
+                            <!-- Paid -->
+                            <div
+                                class="timeline-step {% if order.status in ['paid', 'preparing', 'ready', 'completed'] %}completed{% endif %} {% if order.status == 'paid' %}active{% endif %}">
+                                <h6>💳 Order Paid</h6>
+                                <p class="text-muted mb-0">
+                                    {% if order.payment_time %}
+                                    {{ order.payment_time.strftime('%I:%M %p, %b %d') }}
+                                    {% else %}
+                                    Pending
+                                    {% endif %}
+                                </p>
+                            </div>
+
+                            <!-- Preparing -->
+                            <div
+                                class="timeline-step {% if order.status in ['preparing', 'ready', 'completed'] %}completed{% endif %} {% if order.status == 'preparing' %}active{% endif %}">
+                                <h6>👨‍🍳 Being Prepared</h6>
+                                <p class="text-muted mb-0">
+                                    {% if order.status in ['preparing', 'ready', 'completed'] %}
+                                    Your order is being prepared
+                                    {% else %}
+                                    Waiting...
+                                    {% endif %}
+                                </p>
+                            </div>
+
+                            <!-- Ready -->
+                            <div
+                                class="timeline-step {% if order.status in ['ready', 'completed'] %}completed{% endif %} {% if order.status == 'ready' %}active{% endif %}">
+                                <h6>🔔 Ready for Pickup</h6>
+                                <p class="text-muted mb-0">
+                                    {% if order.status in ['ready', 'completed'] %}
+                                    Your order is ready!
+                                    {% else %}
+                                    Waiting...
+                                    {% endif %}
+                                </p>
+                            </div>
+
+                            <!-- Completed -->
+                            <div class="timeline-step {% if order.status == 'completed' %}completed{% endif %}">
+                                <h6>✅ Completed</h6>
+                                <p class="text-muted mb-0">
+                                    {% if order.completed_time %}
+                                    {{ order.completed_time.strftime('%I:%M %p, %b %d') }}
+                                    {% else %}
+                                    Waiting...
+                                    {% endif %}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="text-center mt-4">
+            <a href="{{ url_for('order_history') }}" class="btn btn-outline-primary">← Back to Order History</a>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</body>
+
+</html>

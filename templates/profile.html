@@ -1,45 +1,77 @@
 {% include 'navbar.html' %}
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-    <meta charset="UTF-8" />
-    <title>User Profile</title>
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" />
-    <style>
-        body {
-            background-color: #f8f9fa;
-        }
-        .profile-card {
-            max-width: 500px;
-            margin: 80px auto;
-            padding: 30px;
-            background: #fff;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        .profile-info p {
-            font-size: 16px;
-            margin-bottom: 10px;
-        }
-        .profile-info strong {
-            width: 150px;
-            display: inline-block;
-        }
-    </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Profile - MyCanteenApp</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 </head>
+
 <body>
-    <div class="container">
-        <div class="profile-card">
-            <h3 class="text-center mb-4">User Profile</h3>
+    <div class="container my-5">
+        <div class="profile-card fade-in">
+            <div class="text-center mb-4">
+                <div style="font-size: 4rem;">👤</div>
+                <h3>{{ user.first_name }} {{ user.last_name }}</h3>
+                <p class="text-muted">@{{ user.username }}</p>
+                {% if user.is_admin %}
+                <span class="badge badge-primary">Admin</span>
+                {% endif %}
+            </div>
+
             <div class="profile-info">
-                <p><strong>Username:</strong> {{ username }}</p>
-                <p><strong>First Name:</strong> {{ first_name }}</p>
-                <p><strong>Last Name:</strong> {{ last_name }}</p>
-                <p><strong>Email:</strong> {{ email }}</p>
-                <p><strong>Phone No:</strong> {{ phone }}</p>
-                <!-- <p><strong>Password Hint:</strong> {{ password_hint }}</p> -->
+                <p><strong>📧 Email:</strong> {{ user.email }}</p>
+                <p><strong>📱 Phone:</strong> {{ user.phone }}</p>
+                <p><strong>📅 Member Since:</strong>
+                    {% if user.created_at %}
+                    {{ user.created_at.strftime('%B %d, %Y') }}
+                    {% else %}
+                    N/A
+                    {% endif %}
+                </p>
+            </div>
+
+            <!-- Order Statistics -->
+            <div class="row mt-4">
+                <div class="col-4">
+                    <div class="stat-card">
+                        <div class="stat-value">{{ total_orders }}</div>
+                        <div class="stat-label">Total Orders</div>
+                    </div>
+                </div>
+                <div class="col-4">
+                    <div class="stat-card">
+                        <div class="stat-value text-success">{{ completed_orders }}</div>
+                        <div class="stat-label">Completed</div>
+                    </div>
+                </div>
+                <div class="col-4">
+                    <div class="stat-card">
+                        <div class="stat-value text-primary">₹{{ total_spent }}</div>
+                        <div class="stat-label">Total Spent</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-4">
+                <a href="{{ url_for('edit_profile') }}" class="btn btn-primary btn-block">
+                    ✏️ Edit Profile
+                </a>
+                <a href="{{ url_for('change_password') }}" class="btn btn-outline-secondary btn-block">
+                    🔒 Change Password
+                </a>
+                <a href="{{ url_for('order_history') }}" class="btn btn-outline-primary btn-block">
+                    📋 View Order History
+                </a>
             </div>
         </div>
     </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 </body>
+
 </html>

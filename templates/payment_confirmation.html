@@ -1,43 +1,61 @@
 {% include 'navbar.html' %}
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Payment Confirmation</title>
+    <title>Order Confirmed - MyCanteenApp</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
-    <style>
-        .confirmation {
-            text-align: center;
-            margin-top: 80px;
-        }
-        .confirmation .icon {
-            font-size: 100px;
-            color: green;
-        }
-        .confirmation h2 {
-            margin-top: 20px;
-            font-size: 36px;
-        }
-        .confirmation p {
-            margin-top: 10px;
-            font-size: 18px;
-        }
-        .confirmation .btn {
-            margin-top: 25px;
-        }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 </head>
+
 <body>
-    <div class="container">
-        <div class="confirmation">
-            <div class="icon">
-                <span>&#10004;</span> <!-- Checkmark symbol -->
+    <div class="container my-5">
+        <div class="card" style="max-width: 600px; margin: 0 auto;">
+            <div class="card-body text-center p-5">
+                <div class="mb-4">
+                    <span style="font-size: 5rem;">✅</span>
+                </div>
+                <h2 class="text-success mb-3">Payment Successful!</h2>
+                <p class="text-muted mb-4">Your order has been placed and is being prepared.</p>
+
+                <div class="card mb-4">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">Order Summary</h5>
+                    </div>
+                    <div class="card-body">
+                        {% for order in orders %}
+                        <div class="d-flex justify-content-between py-2 border-bottom">
+                            <span>{{ order.product_name }} × {{ order.quantity }}</span>
+                            <span>₹{{ order.total_price }}</span>
+                        </div>
+                        {% endfor %}
+                        <div class="d-flex justify-content-between pt-3">
+                            <strong>Total Paid:</strong>
+                            <strong class="text-primary">₹{{ total_amount }}</strong>
+                        </div>
+                    </div>
+                </div>
+
+                <p class="text-muted">
+                    <small>You can track your order status from the Order History page.</small>
+                </p>
+
+                <div class="mt-4">
+                    <a href="{{ url_for('order_history') }}" class="btn btn-primary mr-2">
+                        📋 Track Order
+                    </a>
+                    <a href="{{ url_for('menu') }}" class="btn btn-outline-primary">
+                        🍽️ Order More
+                    </a>
+                </div>
             </div>
-            <h2>Payment Successful!</h2>
-            <p>Thank you for your order.</p>
-            <a href="{{ url_for('feedback') }}" class="btn btn-primary">Leave Feedback</a>
         </div>
     </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 </body>
+
 </html>
