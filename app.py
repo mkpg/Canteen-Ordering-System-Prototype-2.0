@@ -20,7 +20,7 @@ load_dotenv()
 app = Flask(__name__)
 
 # Configuration from environment variables
-app.secret_key = os.getenv('SECRET_KEY', 'your-super-secret-key-change-in-production')
+app.secret_key = os.getenv('SECRET_KEY', 'mongodb+srv://manikandaprabuvk_db_user:<db_password>@cluster0.zyypgsb.mongodb.net/?appName=Cluster0')
 ADMIN_CODE = os.getenv('ADMIN_CODE', '2000')
 
 # MongoDB setup
