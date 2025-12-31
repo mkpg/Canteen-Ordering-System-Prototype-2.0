@@ -1,295 +1,260 @@
-{% include 'navbar.html' %}
 <!DOCTYPE html>
 <html lang="en">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Menu - MyCanteenApp</title>
+    <title>Menu - CanteenOs</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 </head>
 
 <body>
+    {% include 'navbar.html' %}
     {% if is_admin %}
-    <div class="text-center mt-3">
-        <a href="{{ url_for('admin_dashboard') }}" class="btn btn-warning">
-            📊 Go to Admin Dashboard
+    <div class="admin-banner text-center py-2">
+        <a href="{{ url_for('admin_dashboard') }}" class="btn btn-warning btn-sm mr-2">
+            <span class="btn-icon"><svg>
+                    <use href="#icon-bar-chart" />
+                </svg></span> Admin Dashboard
+        </a>
+        <a href="{{ url_for('admin_manage_menu') }}" class="btn btn-info btn-sm">
+            <span class="btn-icon"><svg>
+                    <use href="#icon-pizza" />
+                </svg></span> Manage Menu
         </a>
     </div>
     {% endif %}
 
-    <div class="container my-5">
-        <div class="page-header">
-            <h1>🍽️ Food Menu</h1>
-            <p class="text-muted">Choose your favorite items and add to cart</p>
+    <div class="container my-4">
+        <!-- Page Header -->
+        <div class="page-header text-center mb-4">
+            <h1 class="menu-title"><span class="text-icon"><svg>
+                        <use href="#icon-plate" />
+                    </svg></span> Our Menu</h1>
+            <p class="menu-subtitle">Fresh & delicious food, made with love</p>
         </div>
 
-        <div class="row">
-            <!-- Idli -->
-            <div class="col-lg-4 col-md-6">
-                <div class="food-item fade-in">
-                    <img src="https://m.economictimes.com/thumb/msid-99118050,width-1200,height-900,resizemode-4,imgsize-64776/idli_istock.jpg"
-                        alt="Idli">
-                    <h5>Idli</h5>
-                    <p class="description">Steamed rice cakes served with sambar and chutney.</p>
-                    <p class="price">₹49</p>
-                    <form method="POST" action="{{ url_for('order') }}">
-                        <div class="form-group">
-                            <label for="idli-quantity">Quantity:</label>
-                            <input type="number" id="idli-quantity" name="quantity" min="1" value="1"
-                                class="form-control">
-                        </div>
-                        <div class="form-group">
-                            <label for="idli-custom">Customizations:</label>
-                            <input type="text" id="idli-custom" name="customizations" class="form-control"
-                                placeholder="E.g., extra chutney">
-                        </div>
-                        <input type="hidden" name="productName" value="Idli">
-                        <input type="hidden" name="price" value="49">
-                        <button type="submit" class="btn btn-primary btn-block">Add to Cart</button>
-                    </form>
+        <!-- Search & Filter Bar -->
+        <div class="menu-controls mb-4">
+            <div class="row align-items-center">
+                <div class="col-md-6 mb-3 mb-md-0">
+                    <div class="search-box">
+                        <span class="search-icon"><svg>
+                                <use href="#icon-search" />
+                            </svg></span>
+                        <input type="text" id="searchInput" class="form-control search-input"
+                            placeholder="Search for food..." onkeyup="filterMenu()">
+                    </div>
                 </div>
-            </div>
-
-            <!-- Dosa -->
-            <div class="col-lg-4 col-md-6">
-                <div class="food-item fade-in">
-                    <img src="https://www.awesomecuisine.com/wp-content/uploads/2009/06/Plain-Dosa.jpg" alt="Dosa">
-                    <h5>Dosa</h5>
-                    <p class="description">Thin crispy crepes made from fermented rice and lentil batter.</p>
-                    <p class="price">₹59</p>
-                    <form method="POST" action="{{ url_for('order') }}">
-                        <div class="form-group">
-                            <label>Quantity:</label>
-                            <input type="number" name="quantity" min="1" value="1" class="form-control">
-                        </div>
-                        <div class="form-group">
-                            <label>Customizations:</label>
-                            <input type="text" name="customizations" class="form-control"
-                                placeholder="E.g., ghee roast">
-                        </div>
-                        <input type="hidden" name="productName" value="Dosa">
-                        <input type="hidden" name="price" value="59">
-                        <button type="submit" class="btn btn-primary btn-block">Add to Cart</button>
-                    </form>
-                </div>
-            </div>
-
-            <!-- Pongal -->
-            <div class="col-lg-4 col-md-6">
-                <div class="food-item fade-in">
-                    <img src="https://www.indianhealthyrecipes.com/wp-content/uploads/2021/08/ven-pongal.jpg.webp"
-                        alt="Pongal">
-                    <h5>Pongal</h5>
-                    <p class="description">A savory rice and lentil dish, seasoned with spices and ghee.</p>
-                    <p class="price">₹69</p>
-                    <form method="POST" action="{{ url_for('order') }}">
-                        <div class="form-group">
-                            <label>Quantity:</label>
-                            <input type="number" name="quantity" min="1" value="1" class="form-control">
-                        </div>
-                        <div class="form-group">
-                            <label>Customizations:</label>
-                            <input type="text" name="customizations" class="form-control" placeholder="E.g., no pepper">
-                        </div>
-                        <input type="hidden" name="productName" value="Pongal">
-                        <input type="hidden" name="price" value="69">
-                        <button type="submit" class="btn btn-primary btn-block">Add to Cart</button>
-                    </form>
-                </div>
-            </div>
-
-            <!-- Vada -->
-            <div class="col-lg-4 col-md-6">
-                <div class="food-item fade-in">
-                    <img src="https://www.indianhealthyrecipes.com/wp-content/uploads/2021/07/medu-vada-recipe.jpg"
-                        alt="Vada">
-                    <h5>Medu Vada</h5>
-                    <p class="description">Crispy fried lentil donuts served with sambar and chutney.</p>
-                    <p class="price">₹39</p>
-                    <form method="POST" action="{{ url_for('order') }}">
-                        <div class="form-group">
-                            <label>Quantity:</label>
-                            <input type="number" name="quantity" min="1" value="1" class="form-control">
-                        </div>
-                        <div class="form-group">
-                            <label>Customizations:</label>
-                            <input type="text" name="customizations" class="form-control"
-                                placeholder="E.g., extra crispy">
-                        </div>
-                        <input type="hidden" name="productName" value="Medu Vada">
-                        <input type="hidden" name="price" value="39">
-                        <button type="submit" class="btn btn-primary btn-block">Add to Cart</button>
-                    </form>
-                </div>
-            </div>
-
-            <!-- Upma -->
-            <div class="col-lg-4 col-md-6">
-                <div class="food-item fade-in">
-                    <img src="https://www.indianhealthyrecipes.com/wp-content/uploads/2021/07/upma-recipe.jpg"
-                        alt="Upma">
-                    <h5>Upma</h5>
-                    <p class="description">Savory semolina breakfast dish with vegetables and spices.</p>
-                    <p class="price">₹45</p>
-                    <form method="POST" action="{{ url_for('order') }}">
-                        <div class="form-group">
-                            <label>Quantity:</label>
-                            <input type="number" name="quantity" min="1" value="1" class="form-control">
-                        </div>
-                        <div class="form-group">
-                            <label>Customizations:</label>
-                            <input type="text" name="customizations" class="form-control"
-                                placeholder="E.g., more vegetables">
-                        </div>
-                        <input type="hidden" name="productName" value="Upma">
-                        <input type="hidden" name="price" value="45">
-                        <button type="submit" class="btn btn-primary btn-block">Add to Cart</button>
-                    </form>
-                </div>
-            </div>
-
-            <!-- Uttapam -->
-            <div class="col-lg-4 col-md-6">
-                <div class="food-item fade-in">
-                    <img src="https://www.indianhealthyrecipes.com/wp-content/uploads/2022/01/uttapam-recipe.jpg"
-                        alt="Uttapam">
-                    <h5>Uttapam</h5>
-                    <p class="description">Thick rice pancake topped with onions, tomatoes, and chilies.</p>
-                    <p class="price">₹55</p>
-                    <form method="POST" action="{{ url_for('order') }}">
-                        <div class="form-group">
-                            <label>Quantity:</label>
-                            <input type="number" name="quantity" min="1" value="1" class="form-control">
-                        </div>
-                        <div class="form-group">
-                            <label>Customizations:</label>
-                            <input type="text" name="customizations" class="form-control"
-                                placeholder="E.g., extra onions">
-                        </div>
-                        <input type="hidden" name="productName" value="Uttapam">
-                        <input type="hidden" name="price" value="55">
-                        <button type="submit" class="btn btn-primary btn-block">Add to Cart</button>
-                    </form>
-                </div>
-            </div>
-
-            <!-- Masala Dosa -->
-            <div class="col-lg-4 col-md-6">
-                <div class="food-item fade-in">
-                    <img src="https://www.indianhealthyrecipes.com/wp-content/uploads/2021/06/masala-dosa.jpg"
-                        alt="Masala Dosa">
-                    <h5>Masala Dosa</h5>
-                    <p class="description">Crispy dosa filled with spiced potato stuffing.</p>
-                    <p class="price">₹79</p>
-                    <form method="POST" action="{{ url_for('order') }}">
-                        <div class="form-group">
-                            <label>Quantity:</label>
-                            <input type="number" name="quantity" min="1" value="1" class="form-control">
-                        </div>
-                        <div class="form-group">
-                            <label>Customizations:</label>
-                            <input type="text" name="customizations" class="form-control"
-                                placeholder="E.g., extra masala">
-                        </div>
-                        <input type="hidden" name="productName" value="Masala Dosa">
-                        <input type="hidden" name="price" value="79">
-                        <button type="submit" class="btn btn-primary btn-block">Add to Cart</button>
-                    </form>
-                </div>
-            </div>
-
-            <!-- Sambar Rice -->
-            <div class="col-lg-4 col-md-6">
-                <div class="food-item fade-in">
-                    <img src="https://www.indianhealthyrecipes.com/wp-content/uploads/2021/08/sambar-rice.jpg"
-                        alt="Sambar Rice">
-                    <h5>Sambar Rice</h5>
-                    <p class="description">Steamed rice mixed with aromatic sambar and vegetables.</p>
-                    <p class="price">₹65</p>
-                    <form method="POST" action="{{ url_for('order') }}">
-                        <div class="form-group">
-                            <label>Quantity:</label>
-                            <input type="number" name="quantity" min="1" value="1" class="form-control">
-                        </div>
-                        <div class="form-group">
-                            <label>Customizations:</label>
-                            <input type="text" name="customizations" class="form-control"
-                                placeholder="E.g., extra sambar">
-                        </div>
-                        <input type="hidden" name="productName" value="Sambar Rice">
-                        <input type="hidden" name="price" value="65">
-                        <button type="submit" class="btn btn-primary btn-block">Add to Cart</button>
-                    </form>
-                </div>
-            </div>
-
-            <!-- Filter Coffee -->
-            <div class="col-lg-4 col-md-6">
-                <div class="food-item fade-in">
-                    <img src="https://www.indianhealthyrecipes.com/wp-content/uploads/2022/09/filter-coffee.jpg"
-                        alt="Filter Coffee">
-                    <h5>Filter Coffee</h5>
-                    <p class="description">Traditional South Indian coffee with frothy milk.</p>
-                    <p class="price">₹25</p>
-                    <form method="POST" action="{{ url_for('order') }}">
-                        <div class="form-group">
-                            <label>Quantity:</label>
-                            <input type="number" name="quantity" min="1" value="1" class="form-control">
-                        </div>
-                        <div class="form-group">
-                            <label>Customizations:</label>
-                            <input type="text" name="customizations" class="form-control"
-                                placeholder="E.g., less sugar">
-                        </div>
-                        <input type="hidden" name="productName" value="Filter Coffee">
-                        <input type="hidden" name="price" value="25">
-                        <button type="submit" class="btn btn-primary btn-block">Add to Cart</button>
-                    </form>
-                </div>
-            </div>
-
-            <!-- Sweet Pongal -->
-            <div class="col-lg-4 col-md-6">
-                <div class="food-item fade-in">
-                    <img src="https://www.indianhealthyrecipes.com/wp-content/uploads/2022/01/sweet-pongal.jpg"
-                        alt="Sweet Pongal">
-                    <h5>Sweet Pongal</h5>
-                    <p class="description">Sweet rice pudding with jaggery, cardamom, and cashews.</p>
-                    <p class="price">₹55</p>
-                    <form method="POST" action="{{ url_for('order') }}">
-                        <div class="form-group">
-                            <label>Quantity:</label>
-                            <input type="number" name="quantity" min="1" value="1" class="form-control">
-                        </div>
-                        <div class="form-group">
-                            <label>Customizations:</label>
-                            <input type="text" name="customizations" class="form-control"
-                                placeholder="E.g., extra cashews">
-                        </div>
-                        <input type="hidden" name="productName" value="Sweet Pongal">
-                        <input type="hidden" name="price" value="55">
-                        <button type="submit" class="btn btn-primary btn-block">Add to Cart</button>
-                    </form>
+                <div class="col-md-6">
+                    <div class="category-tabs">
+                        <button class="category-tab active" data-category="all" onclick="filterByCategory('all')">
+                            <svg>
+                                <use href="#icon-plate" />
+                            </svg> All
+                        </button>
+                        <button class="category-tab" data-category="breakfast" onclick="filterByCategory('breakfast')">
+                            <svg>
+                                <use href="#icon-egg" />
+                            </svg> Breakfast
+                        </button>
+                        <button class="category-tab" data-category="lunch" onclick="filterByCategory('lunch')">
+                            <svg>
+                                <use href="#icon-bowl" />
+                            </svg> Lunch
+                        </button>
+                        <button class="category-tab" data-category="snacks" onclick="filterByCategory('snacks')">
+                            <svg>
+                                <use href="#icon-cookie" />
+                            </svg> Snacks
+                        </button>
+                        <button class="category-tab" data-category="beverages" onclick="filterByCategory('beverages')">
+                            <svg>
+                                <use href="#icon-coffee" />
+                            </svg> Drinks
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <!-- Proceed to Payment Button -->
-        <div class="text-center mt-5">
-            <a href="{{ url_for('checkout') }}" class="btn btn-success btn-lg px-5">
-                🛒 Proceed to Cart & Payment
+        {% if menu_items and menu_items|length > 0 %}
+        <div class="row" id="menuGrid">
+            {% for item in menu_items %}
+            <div class="col-lg-4 col-md-6 menu-item-col" data-name="{{ item.name|lower }}"
+                data-category="{{ item.category|lower }}">
+                <div class="food-card">
+                    <div class="food-image-wrapper">
+                        <img src="{{ item.image_url }}" alt="{{ item.name }}" class="food-image" loading="lazy"
+                            onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&h=300&fit=crop';">
+                        {% if loop.index <= 3 %} <span class="badge-popular"><svg>
+                                <use href="#icon-fire" />
+                            </svg> Popular</span>
+                            {% endif %}
+                    </div>
+                    <div class="food-content">
+                        <div class="food-header">
+                            <h5 class="food-name">{{ item.name }}</h5>
+                            <span class="food-category">{{ item.category|capitalize }}</span>
+                        </div>
+                        <p class="food-description">{{ item.description }}</p>
+                        <div class="food-price">₹{{ item.price }}</div>
+
+                        <form method="POST" action="{{ url_for('order') }}" class="order-form">
+                            <div class="quantity-control">
+                                <label class="qty-label"><span class="text-icon"><svg>
+                                            <use href="#icon-package" />
+                                        </svg></span> Quantity</label>
+                                <div class="qty-buttons">
+                                    <button type="button" class="qty-btn minus" onclick="changeQty(this, -1)">−</button>
+                                    <input type="number" name="quantity" min="1" value="1" class="qty-input" readonly>
+                                    <button type="button" class="qty-btn plus" onclick="changeQty(this, 1)">+</button>
+                                </div>
+                            </div>
+
+                            <div class="custom-field">
+                                <label class="custom-label"><span class="text-icon"><svg>
+                                            <use href="#icon-edit" />
+                                        </svg></span> Notes</label>
+                                <input type="text" name="customizations" class="form-control custom-input"
+                                    placeholder="{{ item.customization_hint or 'E.g., less spicy' }}">
+                            </div>
+
+                            <input type="hidden" name="productName" value="{{ item.name }}">
+                            <input type="hidden" name="price" value="{{ item.price }}">
+                            <button type="submit" class="btn btn-add-cart">
+                                <span class="btn-icon"><svg>
+                                        <use href="#icon-cart" />
+                                    </svg></span> Add to Cart
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- No Results Message -->
+        <div id="noResults" class="no-results" style="display: none;">
+            <div class="no-results-icon"><svg>
+                    <use href="#icon-search" />
+                </svg></div>
+            <h3>No items found</h3>
+            <p>Try a different search or category</p>
+        </div>
+
+        <!-- Cart Button -->
+        <div class="cart-float">
+            <a href="{{ url_for('checkout') }}" class="btn btn-cart-main">
+                <svg>
+                    <use href="#icon-cart" />
+                </svg> View Cart
                 {% if cart_count > 0 %}
-                <span class="badge badge-light ml-2">{{ cart_count }} items</span>
+                <span class="cart-badge-float">{{ cart_count }}</span>
                 {% endif %}
             </a>
         </div>
+
+        {% else %}
+        <!-- Empty Menu State -->
+        <div class="empty-menu text-center py-5">
+            <div class="empty-icon"><svg>
+                    <use href="#icon-plate" />
+                </svg></div>
+            <h2>No Menu Items Yet</h2>
+            <p class="text-muted">The menu is currently being prepared.</p>
+            {% if is_admin %}
+            <a href="{{ url_for('admin_manage_menu') }}" class="btn btn-primary btn-lg mt-3">
+                <span class="btn-icon"><svg>
+                        <use href="#icon-plus" />
+                    </svg></span> Add Menu Items
+            </a>
+            {% else %}
+            <p class="mt-3">Please check back soon!</p>
+            {% endif %}
+        </div>
+        {% endif %}
     </div>
 
+    <!-- Footer -->
+    <footer class="app-footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-brand"><svg>
+                        <use href="#icon-utensils" />
+                    </svg> CanteenOs</div>
+                <div class="footer-links">
+                    <a href="{{ url_for('feedback') }}">Feedback</a>
+                    <span>•</span>
+                    <a href="{{ url_for('order_history') }}">Orders</a>
+                </div>
+                <div class="footer-copy">© 2025 CanteenOs. Made with <svg>
+                        <use href="#icon-heart-filled" />
+                    </svg></div>
+            </div>
+        </div>
+    </footer>
+
     <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.3/dist/umd/popper.min.js"></script>
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        // Quantity +/- buttons
+        function changeQty(btn, delta) {
+            const input = btn.parentElement.querySelector('.qty-input');
+            let val = parseInt(input.value) + delta;
+            if (val < 1) val = 1;
+            if (val > 20) val = 20;
+            input.value = val;
+        }
+
+        // Search filter
+        function filterMenu() {
+            const query = document.getElementById('searchInput').value.toLowerCase();
+            const items = document.querySelectorAll('.menu-item-col');
+            let visibleCount = 0;
+
+            items.forEach(item => {
+                const name = item.dataset.name;
+                if (name.includes(query)) {
+                    item.style.display = '';
+                    visibleCount++;
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+
+            document.getElementById('noResults').style.display = visibleCount === 0 ? 'block' : 'none';
+        }
+
+        // Category filter
+        let activeCategory = 'all';
+        function filterByCategory(category) {
+            activeCategory = category;
+            const items = document.querySelectorAll('.menu-item-col');
+            const tabs = document.querySelectorAll('.category-tab');
+            let visibleCount = 0;
+
+            tabs.forEach(tab => {
+                tab.classList.remove('active');
+                if (tab.dataset.category === category) {
+                    tab.classList.add('active');
+                }
+            });
+
+            items.forEach(item => {
+                if (category === 'all' || item.dataset.category === category) {
+                    item.style.display = '';
+                    visibleCount++;
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+
+            document.getElementById('noResults').style.display = visibleCount === 0 ? 'block' : 'none';
+        }
+    </script>
 </body>
 
 </html>

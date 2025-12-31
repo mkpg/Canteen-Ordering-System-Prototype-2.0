@@ -4,30 +4,99 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Page Not Found - MyCanteenApp</title>
+    <title>Page Not Found - CanteenOs</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <style>
+        .error-page {
+            min-height: 70vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .error-icon {
+            margin-bottom: 1.5rem;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        .error-icon svg {
+            width: 8rem;
+            height: 8rem;
+            stroke: var(--primary-color);
+        }
+
+        @keyframes float {
+
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-15px);
+            }
+        }
+
+        .error-code {
+            font-family: var(--font-heading);
+            font-size: 6rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+
+        .error-title {
+            font-family: var(--font-heading);
+            font-size: 2rem;
+            margin-bottom: 1rem;
+        }
+
+        .error-message {
+            font-family: var(--font-primary);
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+            margin-bottom: 2rem;
+            max-width: 400px;
+        }
+    </style>
 </head>
 
 <body>
-    <div class="container">
-        <div class="text-center" style="margin-top: 100px;">
-            <h1 class="display-1 font-weight-bold text-muted">404</h1>
-            <div style="font-size: 5rem;">🍽️</div>
-            <h2 class="mb-3">Oops! Page Not Found</h2>
-            <p class="text-muted mb-4">
-                The page you're looking for doesn't exist or has been moved.
+    {% include 'navbar.html' %}
+    <div class="error-page">
+        <div class="error-content">
+            <div class="error-icon"><svg>
+                    <use href="#icon-plate" />
+                </svg></div>
+            <div class="error-code">404</div>
+            <h1 class="error-title">Oops! Page Not Found</h1>
+            <p class="error-message">
+                Looks like this dish isn't on our menu. Let's get you back to the good stuff!
             </p>
-            <div>
-                <a href="{{ url_for('menu') }}" class="btn btn-primary btn-lg mr-2">
-                    🏠 Go to Menu
-                </a>
-                <a href="{{ url_for('login') }}" class="btn btn-outline-primary btn-lg">
-                    🔐 Login
-                </a>
-            </div>
+            <a href="{{ url_for('menu') }}" class="btn btn-primary btn-lg">
+                <svg style="width: 1.1rem; height: 1.1rem; margin-right: 0.35rem;">
+                    <use href="#icon-home" />
+                </svg> Back to Menu
+            </a>
         </div>
     </div>
+
+    <footer class="app-footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-brand"><svg>
+                        <use href="#icon-utensils" />
+                    </svg> CanteenOs</div>
+                <div class="footer-copy">© 2025 CanteenOs</div>
+            </div>
+        </div>
+    </footer>
 </body>
 
 </html>
+

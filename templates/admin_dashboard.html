@@ -1,19 +1,21 @@
-{% include 'navbar.html' %}
 <!DOCTYPE html>
 <html lang="en">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard - MyCanteenApp</title>
+    <title>Admin Dashboard - CanteenOs</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 </head>
 
 <body>
+    {% include 'navbar.html' %}
     <div class="container my-5">
         <div class="page-header">
-            <h1>📊 Admin Dashboard</h1>
+            <h1><span class="text-icon"><svg>
+                        <use href="#icon-bar-chart" />
+                    </svg></span> Admin Dashboard</h1>
             <p class="text-muted">Overview of your canteen operations</p>
         </div>
 
@@ -21,28 +23,36 @@
         <div class="row mb-4">
             <div class="col-lg-3 col-md-6 mb-3">
                 <div class="stat-card">
-                    <div class="stat-icon">📦</div>
+                    <div class="stat-icon"><svg>
+                            <use href="#icon-package" />
+                        </svg></div>
                     <div class="stat-value">{{ total_orders }}</div>
                     <div class="stat-label">Total Orders</div>
                 </div>
             </div>
             <div class="col-lg-3 col-md-6 mb-3">
                 <div class="stat-card">
-                    <div class="stat-icon">💳</div>
+                    <div class="stat-icon"><svg>
+                            <use href="#icon-credit-card" />
+                        </svg></div>
                     <div class="stat-value text-info">{{ paid_orders }}</div>
                     <div class="stat-label">Paid Orders</div>
                 </div>
             </div>
             <div class="col-lg-3 col-md-6 mb-3">
                 <div class="stat-card">
-                    <div class="stat-icon">✅</div>
+                    <div class="stat-icon"><svg>
+                            <use href="#icon-check-circle" />
+                        </svg></div>
                     <div class="stat-value text-success">{{ completed_orders }}</div>
                     <div class="stat-label">Completed</div>
                 </div>
             </div>
             <div class="col-lg-3 col-md-6 mb-3">
                 <div class="stat-card">
-                    <div class="stat-icon">👥</div>
+                    <div class="stat-icon"><svg>
+                            <use href="#icon-users" />
+                        </svg></div>
                     <div class="stat-value">{{ total_users }}</div>
                     <div class="stat-label">Total Users</div>
                 </div>
@@ -54,7 +64,9 @@
             <div class="col-12">
                 <div class="card bg-gradient-primary text-white">
                     <div class="card-body text-center py-4">
-                        <h5 class="mb-2">💰 Total Revenue</h5>
+                        <h5 class="mb-2"><svg style="width: 1.5rem; height: 1.5rem; margin-right: 0.5rem;">
+                                <use href="#icon-dollar" />
+                            </svg> Total Revenue</h5>
                         <h2 class="display-4 font-weight-bold">₹{{ total_revenue }}</h2>
                     </div>
                 </div>
@@ -65,30 +77,60 @@
         <div class="row mb-4">
             <div class="col-md-3 col-6 mb-2">
                 <a href="{{ url_for('admin_orders') }}" class="btn btn-primary btn-block py-3">
-                    📦 Manage Orders
+                    <svg style="width: 1.1rem; height: 1.1rem; margin-right: 0.35rem;">
+                        <use href="#icon-package" />
+                    </svg> Manage Orders
                 </a>
             </div>
             <div class="col-md-3 col-6 mb-2">
                 <a href="{{ url_for('admin_users') }}" class="btn btn-outline-primary btn-block py-3">
-                    👥 View Users
+                    <svg style="width: 1.1rem; height: 1.1rem; margin-right: 0.35rem;">
+                        <use href="#icon-users" />
+                    </svg> View Users
                 </a>
             </div>
             <div class="col-md-3 col-6 mb-2">
                 <a href="{{ url_for('admin_feedback') }}" class="btn btn-outline-primary btn-block py-3">
-                    ⭐ View Feedback
+                    <svg style="width: 1.1rem; height: 1.1rem; margin-right: 0.35rem;">
+                        <use href="#icon-star" />
+                    </svg> View Feedback
                 </a>
             </div>
             <div class="col-md-3 col-6 mb-2">
+                <button type="button" class="btn btn-add-food btn-block py-3" data-toggle="modal"
+                    data-target="#addFoodModal">
+                    <svg style="width: 1.1rem; height: 1.1rem; margin-right: 0.35rem;">
+                        <use href="#icon-plus" />
+                    </svg> Add Food Item
+                </button>
+            </div>
+        </div>
+
+        <!-- Add More Quick Links -->
+        <div class="row mb-4">
+            <div class="col-md-6 col-12 mb-2">
                 <a href="{{ url_for('menu') }}" class="btn btn-outline-secondary btn-block py-3">
-                    🍽️ Go to Menu
+                    <svg style="width: 1.1rem; height: 1.1rem; margin-right: 0.35rem;">
+                        <use href="#icon-plate" />
+                    </svg> Go to Menu
+                </a>
+            </div>
+            <div class="col-md-6 col-12 mb-2">
+                <a href="{{ url_for('admin_manage_menu') }}" class="btn btn-success btn-block py-3">
+                    <svg style="width: 1.1rem; height: 1.1rem; margin-right: 0.35rem;">
+                        <use href="#icon-pizza" />
+                    </svg> Manage Menu Items
                 </a>
             </div>
         </div>
 
+
         <!-- Pending Orders Alert -->
         {% if paid_orders > 0 %}
         <div class="alert alert-warning">
-            <strong>⚠️ {{ paid_orders }} orders</strong> are waiting to be prepared!
+            <strong><svg style="width: 1.1rem; height: 1.1rem; margin-right: 0.35rem;">
+                    <use href="#icon-alert-triangle" />
+                </svg> {{ paid_orders }} orders</strong> are waiting to be prepared!
             <a href="{{ url_for('admin_orders') }}?status=paid" class="alert-link">View now →</a>
         </div>
         {% endif %}
@@ -142,6 +184,148 @@
 
     <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+    <!-- Add Food Modal -->
+    <div class="modal fade" id="addFoodModal" tabindex="-1" role="dialog" aria-labelledby="addFoodModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addFoodModalLabel"><svg
+                            style="width: 1.25rem; height: 1.25rem; margin-right: 0.5rem;">
+                            <use href="#icon-pizza" />
+                        </svg> Add New Food Item</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <form action="{{ url_for('add_food_item') }}" method="POST" enctype="multipart/form-data">
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label for="foodName">Food Name</label>
+                            <input type="text" class="form-control" id="foodName" name="food_name"
+                                placeholder="E.g., Masala Dosa" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="foodDescription">Description</label>
+                            <textarea class="form-control" id="foodDescription" name="description" rows="3"
+                                placeholder="A short description of the food item..." required></textarea>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="foodPrice">Price (₹)</label>
+                                    <input type="number" class="form-control" id="foodPrice" name="price"
+                                        placeholder="59" min="1" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="foodCategory">Category</label>
+                                    <select class="form-control" id="foodCategory" name="category">
+                                        <option value="breakfast">Breakfast</option>
+                                        <option value="lunch">Lunch</option>
+                                        <option value="snacks">Snacks</option>
+                                        <option value="beverages">Beverages</option>
+                                        <option value="desserts">Desserts</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Image Source Selection -->
+                        <div class="form-group">
+                            <label>Food Image <span class="text-danger">*</span></label>
+                            <div class="image-source-toggle">
+                                <div class="btn-group btn-group-toggle w-100 mb-3" data-toggle="buttons">
+                                    <label class="btn btn-outline-primary active" id="addUrlBtn">
+                                        <input type="radio" name="image_source" value="url" checked>
+                                        <svg style="width: 1rem; height: 1rem; margin-right: 0.25rem;">
+                                            <use href="#icon-link" />
+                                        </svg>
+                                        Enter URL
+                                    </label>
+                                    <label class="btn btn-outline-primary" id="addUploadBtn">
+                                        <input type="radio" name="image_source" value="upload">
+                                        <svg style="width: 1rem; height: 1rem; margin-right: 0.25rem;">
+                                            <use href="#icon-upload" />
+                                        </svg>
+                                        Upload File
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- URL Input -->
+                            <div id="addUrlInput">
+                                <input type="url" class="form-control" id="foodImage" name="image_url"
+                                    placeholder="https://example.com/image.jpg">
+                                <small class="form-text text-muted">Enter a direct URL to the food image</small>
+                            </div>
+
+                            <!-- File Upload -->
+                            <div id="addFileInput" style="display: none;">
+                                <div class="custom-file">
+                                    <input type="file" class="custom-file-input" id="addFoodImageFile" name="food_image"
+                                        accept="image/png,image/jpeg,image/jpg,image/gif,image/webp">
+                                    <label class="custom-file-label" for="addFoodImageFile">Choose image file...</label>
+                                </div>
+                                <small class="form-text text-muted">Supported: PNG, JPG, JPEG, GIF, WEBP (Max
+                                    5MB)</small>
+                                <div id="addImagePreview" class="mt-2" style="display: none;">
+                                    <img src="" alt="Preview" class="img-thumbnail" style="max-height: 150px;">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="customizationHint">Customization Hint</label>
+                            <input type="text" class="form-control" id="customizationHint" name="customization_hint"
+                                placeholder="E.g., extra cheese, no onion">
+                            <small class="form-text text-muted">Example customization shown to customers</small>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-add-food"><svg
+                                style="width: 1rem; height: 1rem; margin-right: 0.35rem;">
+                                <use href="#icon-plus" />
+                            </svg> Add Food Item</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Toggle between URL and File upload for Add Modal
+        document.getElementById('addUrlBtn').addEventListener('click', function () {
+            document.getElementById('addUrlInput').style.display = 'block';
+            document.getElementById('addFileInput').style.display = 'none';
+        });
+
+        document.getElementById('addUploadBtn').addEventListener('click', function () {
+            document.getElementById('addUrlInput').style.display = 'none';
+            document.getElementById('addFileInput').style.display = 'block';
+        });
+
+        // File input label update and preview for Add Modal
+        document.getElementById('addFoodImageFile').addEventListener('change', function () {
+            var fileName = this.files[0] ? this.files[0].name : 'Choose image file...';
+            this.nextElementSibling.textContent = fileName;
+
+            // Show preview
+            if (this.files[0]) {
+                var reader = new FileReader();
+                reader.onload = function (e) {
+                    var preview = document.getElementById('addImagePreview');
+                    preview.style.display = 'block';
+                    preview.querySelector('img').src = e.target.result;
+                };
+                reader.readAsDataURL(this.files[0]);
+            }
+        });
+    </script>
 </body>
 
 </html>
+

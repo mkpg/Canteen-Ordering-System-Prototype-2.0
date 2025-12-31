@@ -1,7 +1,10 @@
-<nav class="navbar navbar-expand-lg navbar-light bg-white">
+{% include 'icons.html' %}
+<nav class="navbar navbar-expand-lg navbar-dark">
     <div class="container">
         <a class="navbar-brand" href="{{ url_for('menu') }}">
-            🍴 MyCanteenApp
+            <span class="brand-icon"><svg>
+                    <use href="#icon-utensils" />
+                </svg></span> CanteenOs
         </a>
 
         <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarMain"
@@ -14,60 +17,52 @@
             <ul class="navbar-nav ml-auto align-items-center">
                 <!-- Menu Link -->
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('menu') }}">Menu</a>
+                    <a class="nav-link" href="{{ url_for('menu') }}">
+                        <span class="nav-icon"><svg>
+                                <use href="#icon-plate" />
+                            </svg></span> Menu
+                    </a>
                 </li>
 
                 <!-- Cart Link with Badge -->
                 <li class="nav-item cart-badge">
                     <a class="nav-link" href="{{ url_for('checkout') }}">
-                        🛒 Cart
+                        <span class="nav-icon"><svg>
+                                <use href="#icon-cart" />
+                            </svg></span> Cart
                         {% if cart_count > 0 %}
                         <span class="badge badge-danger">{{ cart_count }}</span>
                         {% endif %}
                     </a>
                 </li>
 
+                <!-- My Orders Link -->
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('order_history') }}">
+                        <span class="nav-icon"><svg>
+                                <use href="#icon-clipboard" />
+                            </svg></span> My Orders
+                    </a>
+                </li>
+
                 <!-- Feedback Link -->
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('feedback') }}">Feedback</a>
+                    <a class="nav-link" href="{{ url_for('feedback') }}">
+                        <span class="nav-icon"><svg>
+                                <use href="#icon-star" />
+                            </svg></span> Feedback
+                    </a>
                 </li>
 
-                <!-- Direct Profile Link (clickable icon) -->
+                <!-- Profile Button - Links directly to profile page -->
                 <li class="nav-item">
                     <a class="nav-link" href="{{ url_for('profile') }}" title="My Profile">
-                        👤
+                        <div class="user-avatar">
+                            <span class="avatar-icon"><svg>
+                                    <use href="#icon-user" />
+                                </svg></span>
+                        </div>
                     </a>
-                </li>
-
-                <!-- Account Dropdown -->
-                <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" href="#" id="accountDropdown" role="button"
-                        data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                        {{ logged_in_user }}
-                    </a>
-                    <div class="dropdown-menu dropdown-menu-right" aria-labelledby="accountDropdown">
-                        <h6 class="dropdown-header">Hello, {{ logged_in_user }}!</h6>
-
-                        <!-- Admin Section -->
-                        {% if is_admin %}
-                        <a class="dropdown-item text-primary" href="{{ url_for('admin_dashboard') }}">
-                            📊 Admin Dashboard
-                        </a>
-                        <a class="dropdown-item" href="{{ url_for('admin_orders') }}">📦 Manage Orders</a>
-                        <a class="dropdown-item" href="{{ url_for('admin_users') }}">👥 All Users</a>
-                        <a class="dropdown-item" href="{{ url_for('admin_feedback') }}">⭐ All Feedback</a>
-                        <div class="dropdown-divider"></div>
-                        {% endif %}
-
-                        <!-- User Section -->
-                        <a class="dropdown-item" href="{{ url_for('profile') }}">👤 My Profile</a>
-                        <a class="dropdown-item" href="{{ url_for('edit_profile') }}">✏️ Edit Profile</a>
-                        <a class="dropdown-item" href="{{ url_for('change_password') }}">🔒 Change Password</a>
-                        <a class="dropdown-item" href="{{ url_for('order_history') }}">📋 Order History</a>
-
-                        <div class="dropdown-divider"></div>
-                        <a class="dropdown-item text-danger" href="{{ url_for('logout') }}">🚪 Logout</a>
-                    </div>
                 </li>
             </ul>
             {% endif %}
@@ -76,7 +71,7 @@
 </nav>
 
 <!-- Flash Messages -->
-<div class="container mt-3">
+<div class="container mt-4">
     {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
     {% for category, message in messages %}
@@ -90,7 +85,3 @@
     {% endif %}
     {% endwith %}
 </div>
-
-<!-- Bootstrap JS for dropdown -->
-<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.bundle.min.js"></script>

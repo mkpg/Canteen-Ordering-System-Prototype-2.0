@@ -1,19 +1,21 @@
-{% include 'navbar.html' %}
 <!DOCTYPE html>
 <html lang="en">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Checkout - MyCanteenApp</title>
+    <title>Checkout - CanteenOs</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 </head>
 
 <body>
+    {% include 'navbar.html' %}
     <div class="container my-5">
         <div class="page-header">
-            <h1>🛒 Your Cart</h1>
+            <h1><span class="text-icon"><svg>
+                        <use href="#icon-cart" />
+                    </svg></span> Your Cart</h1>
             <p class="text-muted">Review your order before payment</p>
         </div>
 
@@ -32,7 +34,9 @@
                                 <small class="text-muted">
                                     Qty: {{ order.quantity }} × ₹{{ order.price }}
                                     {% if order.customizations %}
-                                    <br>📝 {{ order.customizations }}
+                                    <br><span class="text-icon"><svg>
+                                            <use href="#icon-notes" />
+                                        </svg></span> {{ order.customizations }}
                                     {% endif %}
                                 </small>
                             </div>
@@ -41,7 +45,9 @@
                                 <form action="{{ url_for('remove_order', order_id=order._id) }}" method="POST"
                                     onsubmit="return confirm('Remove this item from cart?');">
                                     <button type="submit" class="btn btn-sm btn-outline-danger">
-                                        ✕ Remove
+                                        <svg style="width: 0.9rem; height: 0.9rem;">
+                                            <use href="#icon-x" />
+                                        </svg> Remove
                                     </button>
                                 </form>
                             </div>
@@ -86,7 +92,9 @@
                             </div>
 
                             <button type="submit" class="btn btn-success btn-block btn-lg">
-                                💳 Pay ₹{{ total_amount }}
+                                <span class="btn-icon"><svg>
+                                        <use href="#icon-credit-card" />
+                                    </svg></span> Pay ₹{{ total_amount }}
                             </button>
                         </form>
                     </div>
@@ -96,7 +104,9 @@
         {% else %}
         <div class="empty-state card p-5">
             <div class="text-center">
-                <h1 class="display-1 mb-3">🛒</h1>
+                <div class="display-icon mb-3"><svg style="width: 5rem; height: 5rem; stroke: var(--text-secondary);">
+                        <use href="#icon-cart" />
+                    </svg></div>
                 <h4>Your cart is empty</h4>
                 <p class="text-muted">Add some delicious items from our menu!</p>
                 <a href="{{ url_for('menu') }}" class="btn btn-primary btn-lg mt-3">
@@ -126,3 +136,4 @@
 </body>
 
 </html>
+

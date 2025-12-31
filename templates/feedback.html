@@ -1,11 +1,10 @@
-{% include 'navbar.html' %}
 <!DOCTYPE html>
 <html lang="en">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Feedback - MyCanteenApp</title>
+    <title>Feedback - CanteenOs</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     <style>
@@ -36,9 +35,12 @@
 </head>
 
 <body>
+    {% include 'navbar.html' %}
     <div class="container my-5">
         <div class="auth-card fade-in" style="max-width: 500px;">
-            <h2>⭐ Give Feedback</h2>
+            <h2><span class="text-icon"><svg>
+                        <use href="#icon-star" />
+                    </svg></span> Give Feedback</h2>
             <p class="text-center text-muted mb-4">We'd love to hear from you!</p>
 
             <form method="POST" action="{{ url_for('feedback') }}">
@@ -78,3 +80,4 @@
 </body>
 
 </html>
+

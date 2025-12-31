@@ -4,30 +4,108 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Server Error - MyCanteenApp</title>
+    <title>Server Error - CanteenOs</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <style>
+        .error-page {
+            min-height: 70vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .error-icon {
+            margin-bottom: 1.5rem;
+            animation: shake 0.5s ease-in-out infinite;
+        }
+
+        .error-icon svg {
+            width: 8rem;
+            height: 8rem;
+            stroke: #ef4444;
+        }
+
+        @keyframes shake {
+
+            0%,
+            100% {
+                transform: rotate(0deg);
+            }
+
+            25% {
+                transform: rotate(-5deg);
+            }
+
+            75% {
+                transform: rotate(5deg);
+            }
+        }
+
+        .error-code {
+            font-family: var(--font-heading);
+            font-size: 6rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #ef4444, #f87171);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+
+        .error-title {
+            font-family: var(--font-heading);
+            font-size: 2rem;
+            margin-bottom: 1rem;
+        }
+
+        .error-message {
+            font-family: var(--font-primary);
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+            margin-bottom: 2rem;
+            max-width: 400px;
+        }
+    </style>
 </head>
 
 <body>
-    <div class="container">
-        <div class="text-center" style="margin-top: 100px;">
-            <h1 class="display-1 font-weight-bold text-danger">500</h1>
-            <div style="font-size: 5rem;">⚠️</div>
-            <h2 class="mb-3">Something Went Wrong</h2>
-            <p class="text-muted mb-4">
-                We're experiencing technical difficulties. Please try again later.
+    {% include 'navbar.html' %}
+    <div class="error-page">
+        <div class="error-content">
+            <div class="error-icon"><svg>
+                    <use href="#icon-fire" />
+                </svg></div>
+            <div class="error-code">500</div>
+            <h1 class="error-title">Something Went Wrong!</h1>
+            <p class="error-message">
+                Our kitchen is having some trouble. Our chefs are working on it. Please try again in a moment.
             </p>
-            <div>
-                <a href="{{ url_for('menu') }}" class="btn btn-primary btn-lg mr-2">
-                    🏠 Go to Menu
-                </a>
-                <a href="javascript:location.reload()" class="btn btn-outline-primary btn-lg">
-                    🔄 Try Again
-                </a>
-            </div>
+            <a href="{{ url_for('menu') }}" class="btn btn-primary btn-lg mr-2">
+                <svg style="width: 1.1rem; height: 1.1rem; margin-right: 0.35rem;">
+                    <use href="#icon-home" />
+                </svg> Back to Menu
+            </a>
+            <button onclick="location.reload()" class="btn btn-outline-secondary btn-lg">
+                <svg style="width: 1.1rem; height: 1.1rem; margin-right: 0.35rem;">
+                    <use href="#icon-refresh" />
+                </svg> Try Again
+            </button>
         </div>
     </div>
+
+    <footer class="app-footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-brand"><svg>
+                        <use href="#icon-utensils" />
+                    </svg> CanteenOs</div>
+                <div class="footer-copy">© 2025 CanteenOs</div>
+            </div>
+        </div>
+    </footer>
 </body>
 
 </html>
+

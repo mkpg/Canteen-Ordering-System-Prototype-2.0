@@ -4,16 +4,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - MyCanteenApp</title>
+    <title>Login - CanteenOs</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 </head>
 
 <body>
+    {% include 'icons.html' %}
     <!-- Simple Brand Navbar -->
     <nav class="navbar navbar-expand-lg navbar-light bg-white">
         <div class="container">
-            <a class="navbar-brand" href="#">🍴 MyCanteenApp</a>
+            <a class="navbar-brand" href="#"><span class="brand-icon"><svg>
+                        <use href="#icon-utensils" />
+                    </svg></span> CanteenOs</a>
         </div>
     </nav>
 

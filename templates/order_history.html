@@ -1,19 +1,21 @@
-{% include 'navbar.html' %}
 <!DOCTYPE html>
 <html lang="en">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Order History - MyCanteenApp</title>
+    <title>Order History - CanteenOs</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 </head>
 
 <body>
+    {% include 'navbar.html' %}
     <div class="container my-5">
         <div class="page-header">
-            <h1>📋 Order History</h1>
+            <h1><span class="text-icon"><svg>
+                        <use href="#icon-clipboard" />
+                    </svg></span> Order History</h1>
             <p class="text-muted">Track all your past orders</p>
         </div>
 
@@ -45,10 +47,18 @@
                                 <td>₹{{ order.total_price }}</td>
                                 <td>
                                     <span class="status-badge status-{{ order.status }}">
-                                        {% if order.status == 'paid' %}💳{% endif %}
-                                        {% if order.status == 'preparing' %}👨‍🍳{% endif %}
-                                        {% if order.status == 'ready' %}🔔{% endif %}
-                                        {% if order.status == 'completed' %}✅{% endif %}
+                                        {% if order.status == 'paid' %}<svg style="width: 0.9rem; height: 0.9rem;">
+                                            <use href="#icon-credit-card" />
+                                        </svg>{% endif %}
+                                        {% if order.status == 'preparing' %}<svg style="width: 0.9rem; height: 0.9rem;">
+                                            <use href="#icon-chef-hat" />
+                                        </svg>{% endif %}
+                                        {% if order.status == 'ready' %}<svg style="width: 0.9rem; height: 0.9rem;">
+                                            <use href="#icon-bell" />
+                                        </svg>{% endif %}
+                                        {% if order.status == 'completed' %}<svg style="width: 0.9rem; height: 0.9rem;">
+                                            <use href="#icon-check-circle" />
+                                        </svg>{% endif %}
                                         {{ order.status | capitalize }}
                                     </span>
                                 </td>
@@ -72,7 +82,9 @@
         {% else %}
         <div class="empty-state card p-5">
             <div class="text-center">
-                <h1 class="display-1 mb-3">📋</h1>
+                <div class="display-icon mb-3"><svg style="width: 5rem; height: 5rem; stroke: var(--text-secondary);">
+                        <use href="#icon-clipboard" />
+                    </svg></div>
                 <h4>No orders yet</h4>
                 <p class="text-muted">Your order history will appear here after you place an order.</p>
                 <a href="{{ url_for('menu') }}" class="btn btn-primary btn-lg mt-3">
@@ -92,3 +104,4 @@
 </body>
 
 </html>
+

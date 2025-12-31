@@ -1,4 +1,3 @@
-{% include 'navbar.html' %}
 <!DOCTYPE html>
 <html lang="en">
 
@@ -11,9 +10,12 @@
 </head>
 
 <body>
+    {% include 'navbar.html' %}
     <div class="container my-5">
         <div class="page-header">
-            <h1>📦 Order Management</h1>
+            <h1><span class="text-icon"><svg>
+                        <use href="#icon-package" />
+                    </svg></span> Order Management</h1>
             <p class="text-muted">View and update order statuses</p>
         </div>
 
@@ -26,19 +28,27 @@
                 </a>
                 <a href="{{ url_for('admin_orders', status='paid') }}"
                     class="btn btn-{{ 'info' if current_filter == 'paid' else 'outline-info' }}">
-                    💳 Paid
+                    <svg style="width: 0.9rem; height: 0.9rem; margin-right: 0.25rem;">
+                        <use href="#icon-credit-card" />
+                    </svg> Paid
                 </a>
                 <a href="{{ url_for('admin_orders', status='preparing') }}"
                     class="btn btn-{{ 'warning' if current_filter == 'preparing' else 'outline-warning' }}">
-                    👨‍🍳 Preparing
+                    <svg style="width: 0.9rem; height: 0.9rem; margin-right: 0.25rem;">
+                        <use href="#icon-chef-hat" />
+                    </svg> Preparing
                 </a>
                 <a href="{{ url_for('admin_orders', status='ready') }}"
                     class="btn btn-{{ 'secondary' if current_filter == 'ready' else 'outline-secondary' }}">
-                    🔔 Ready
+                    <svg style="width: 0.9rem; height: 0.9rem; margin-right: 0.25rem;">
+                        <use href="#icon-bell" />
+                    </svg> Ready
                 </a>
                 <a href="{{ url_for('admin_orders', status='completed') }}"
                     class="btn btn-{{ 'success' if current_filter == 'completed' else 'outline-success' }}">
-                    ✅ Completed
+                    <svg style="width: 0.9rem; height: 0.9rem; margin-right: 0.25rem;">
+                        <use href="#icon-check-circle" />
+                    </svg> Completed
                 </a>
             </div>
         </div>
@@ -90,7 +100,9 @@
                                             action="{{ url_for('update_order_status', order_id=order._id, new_status='preparing') }}"
                                             method="POST" class="d-inline">
                                             <button type="submit" class="btn btn-sm btn-warning">
-                                                👨‍🍳 Preparing
+                                                <svg style="width: 0.9rem; height: 0.9rem;">
+                                                    <use href="#icon-chef-hat" />
+                                                </svg> Preparing
                                             </button>
                                         </form>
                                         {% endif %}
@@ -100,7 +112,9 @@
                                             action="{{ url_for('update_order_status', order_id=order._id, new_status='ready') }}"
                                             method="POST" class="d-inline">
                                             <button type="submit" class="btn btn-sm btn-info">
-                                                🔔 Ready
+                                                <svg style="width: 0.9rem; height: 0.9rem;">
+                                                    <use href="#icon-bell" />
+                                                </svg> Ready
                                             </button>
                                         </form>
                                         {% endif %}
@@ -110,13 +124,17 @@
                                             action="{{ url_for('update_order_status', order_id=order._id, new_status='completed') }}"
                                             method="POST" class="d-inline">
                                             <button type="submit" class="btn btn-sm btn-success">
-                                                ✅ Complete
+                                                <svg style="width: 0.9rem; height: 0.9rem;">
+                                                    <use href="#icon-check-circle" />
+                                                </svg> Complete
                                             </button>
                                         </form>
                                         {% endif %}
 
                                         {% if order.status == 'completed' %}
-                                        <span class="text-success">✅ Done</span>
+                                        <span class="text-success"><svg style="width: 1rem; height: 1rem;">
+                                                <use href="#icon-check-circle" />
+                                            </svg> Done</span>
                                         {% endif %}
                                     </div>
                                 </td>
@@ -130,7 +148,9 @@
         {% else %}
         <div class="empty-state card p-5">
             <div class="text-center">
-                <h1 class="display-1 mb-3">📦</h1>
+                <div class="display-icon mb-3"><svg style="width: 5rem; height: 5rem; stroke: var(--text-secondary);">
+                        <use href="#icon-package" />
+                    </svg></div>
                 <h4>No orders found</h4>
                 <p class="text-muted">
                     {% if current_filter != 'all' %}
@@ -153,3 +173,4 @@
 </body>
 
 </html>
+

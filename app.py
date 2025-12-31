@@ -1,28 +1,42 @@
 """
 Automated Canteen Ordering System
 Flask Backend with MongoDB
+Production-Ready Version
 """
 
 import os
 import re
 import certifi
-from flask import Flask, render_template, request, redirect, url_for, session, flash
+import base64
+from flask import Flask, render_template, request, redirect, url_for, session, flash, Response, send_file
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
 from pymongo import MongoClient
-from datetime import datetime
+from gridfs import GridFS
+from datetime import datetime, timedelta
 from bson.objectid import ObjectId
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
 from flask_mail import Mail, Message
 from dotenv import load_dotenv
+from io import BytesIO
 
 # Load environment variables
 load_dotenv()
 
 app = Flask(__name__)
 
-# Configuration from environment variables
-app.secret_key = os.getenv('SECRET_KEY', 'your-super-secret-key-change-in-production')
+# ==================== SECURE CONFIGURATION ====================
+# All sensitive data MUST be in environment variables
+app.secret_key = os.getenv('SECRET_KEY', os.urandom(24).hex())
 ADMIN_CODE = os.getenv('ADMIN_CODE', '2000')
+
+# Secure session configuration
+app.config.update(
+    SESSION_COOKIE_SECURE=False,  # Set to True in production with HTTPS
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE='Lax',
+    PERMANENT_SESSION_LIFETIME=timedelta(hours=24)
+)
 
 # MongoDB setup with SSL certificate for Atlas
 MONGO_URI = os.getenv('MONGO_URI', 'mongodb://localhost:27017/')
@@ -32,19 +46,31 @@ users_col = db['users']
 feedback_col = db['feedback']
 orders_col = db['orders']
 
+# GridFS for storing uploaded images in MongoDB
+fs = GridFS(db, collection='food_images')
+
+# Allowed image file extensions
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+
+def allowed_file(filename):
+    """Check if filename has an allowed image extension."""
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
 # Create indexes for better performance
 users_col.create_index('username', unique=True)
 users_col.create_index('email', unique=True)
 orders_col.create_index('username')
 orders_col.create_index('status')
+db.menu_items.create_index('category')
+db.menu_items.create_index('is_available')
 
-# Flask-Mail Configuration
+# Flask-Mail Configuration (credentials from environment)
 app.config.update(
-    MAIL_SERVER='smtp.gmail.com',
-    MAIL_PORT=587,
+    MAIL_SERVER=os.getenv('MAIL_SERVER', 'smtp.gmail.com'),
+    MAIL_PORT=int(os.getenv('MAIL_PORT', 587)),
     MAIL_USE_TLS=True,
-    MAIL_USERNAME=os.getenv('MAIL_USERNAME', 'canteenpros@gmail.com'),
-    MAIL_PASSWORD=os.getenv('MAIL_PASSWORD', 'jkhy djbj pnfv pvnn')
+    MAIL_USERNAME=os.getenv('MAIL_USERNAME'),
+    MAIL_PASSWORD=os.getenv('MAIL_PASSWORD')
 )
 mail = Mail(app)
 
@@ -112,6 +138,81 @@ def admin_required(f):
 @app.context_processor
 def inject_cart_count():
     return dict(cart_count=get_pending_cart_count())
+
+# ==================== SEED DEFAULT MENU ====================
+
+def seed_default_menu():
+    """Seed default menu items if database is empty."""
+    if db.menu_items.count_documents({}) == 0:
+        # Using Unsplash source URLs which are reliable and don't block hotlinking
+        # Format: https://images.unsplash.com/photo-{id}?w=400&h=300&fit=crop
+        default_items = [
+            {
+                'name': 'Idli',
+                'description': 'Fluffy steamed rice cakes served with sambar and chutney.',
+                'price': 49,
+                'category': 'breakfast',
+                'image_url': 'https://images.unsplash.com/photo-1589301760014-d929f3979dbc?w=400&h=300&fit=crop',
+                'customization_hint': 'Extra chutney, no sambar',
+                'is_available': True,
+                'created_at': datetime.now()
+            },
+            {
+                'name': 'Masala Dosa',
+                'description': 'Crispy golden crepe filled with spiced potato masala.',
+                'price': 69,
+                'category': 'breakfast',
+                'image_url': 'https://images.unsplash.com/photo-1668236543090-82eba5ee5976?w=400&h=300&fit=crop',
+                'customization_hint': 'Ghee roast, extra crispy',
+                'is_available': True,
+                'created_at': datetime.now()
+            },
+            {
+                'name': 'Pongal',
+                'description': 'Creamy rice and lentil dish seasoned with pepper and ghee.',
+                'price': 59,
+                'category': 'breakfast',
+                'image_url': 'https://images.unsplash.com/photo-1630383249896-424e482df921?w=400&h=300&fit=crop',
+                'customization_hint': 'Extra ghee, less pepper',
+                'is_available': True,
+                'created_at': datetime.now()
+            },
+            {
+                'name': 'Medu Vada',
+                'description': 'Crispy fried lentil donuts, golden and crunchy.',
+                'price': 39,
+                'category': 'snacks',
+                'image_url': 'https://images.unsplash.com/photo-1626132647523-66f5bf380027?w=400&h=300&fit=crop',
+                'customization_hint': 'Extra crispy',
+                'is_available': True,
+                'created_at': datetime.now()
+            },
+            {
+                'name': 'Filter Coffee',
+                'description': 'Traditional South Indian coffee with frothy milk.',
+                'price': 25,
+                'category': 'beverages',
+                'image_url': 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&h=300&fit=crop',
+                'customization_hint': 'Less sugar, extra strong',
+                'is_available': True,
+                'created_at': datetime.now()
+            },
+            {
+                'name': 'Upma',
+                'description': 'Savory semolina breakfast with vegetables and spices.',
+                'price': 45,
+                'category': 'breakfast',
+                'image_url': 'https://images.unsplash.com/photo-1567337710282-00832b415979?w=400&h=300&fit=crop',
+                'customization_hint': 'More vegetables, less oil',
+                'is_available': True,
+                'created_at': datetime.now()
+            }
+        ]
+        db.menu_items.insert_many(default_items)
+        print("✅ Seeded default menu items")
+
+# Seed menu on startup
+seed_default_menu()
 
 # ==================== ERROR HANDLERS ====================
 
@@ -235,7 +336,7 @@ def forgot_password():
             reset_url = url_for('reset_password', token=token, _external=True)
             
             msg = Message(
-                "Password Reset Request - MyCanteenApp",
+                "Password Reset Request - CanteenOs",
                 sender=app.config['MAIL_USERNAME'],
                 recipients=[email],
                 body=f'''Hi {user['first_name']},
@@ -248,7 +349,7 @@ This link will expire in 1 hour.
 
 If you did not request this, please ignore this email.
 
-- MyCanteenApp Team
+- CanteenOs Team
 '''
             )
             try:
@@ -314,10 +415,15 @@ def logout():
 @app.route('/menu')
 @login_required
 def menu():
-    """Display food menu."""
+    """Display food menu - dynamic from database."""
     user = get_logged_in_user()
+    
+    # Get all available menu items from database
+    menu_items = list(db.menu_items.find({'is_available': True}).sort('created_at', -1))
+    
     return render_template(
         'menu_item.html',
+        menu_items=menu_items,
         logged_in_user=user['username'],
         is_admin=user.get('is_admin', False)
     )
@@ -829,8 +935,246 @@ def admin_feedback():
         is_admin=True
     )
 
+# ==================== MENU MANAGEMENT ROUTES ====================
+
+@app.route('/admin/add_food_item', methods=['POST'])
+@admin_required
+def add_food_item():
+    """Add a new food item to the menu. Admin only."""
+    try:
+        food_name = request.form['food_name'].strip()
+        description = request.form['description'].strip()
+        price = float(request.form['price'])
+        category = request.form.get('category', 'breakfast')
+        image_url = request.form.get('image_url', '').strip()
+        customization_hint = request.form.get('customization_hint', '').strip()
+        image_source = request.form.get('image_source', 'url')  # 'url' or 'upload'
+        
+        final_image_url = ''
+        
+        # Handle image based on source selection
+        if image_source == 'upload':
+            # Handle file upload
+            if 'food_image' in request.files:
+                file = request.files['food_image']
+                if file and file.filename and allowed_file(file.filename):
+                    # Secure the filename
+                    filename = secure_filename(file.filename)
+                    # Get file content type
+                    content_type = file.content_type or 'image/jpeg'
+                    # Store in GridFS
+                    file_id = fs.put(
+                        file.read(),
+                        filename=filename,
+                        content_type=content_type,
+                        food_name=food_name,
+                        uploaded_at=datetime.now()
+                    )
+                    # Create URL to serve the image
+                    final_image_url = url_for('serve_food_image', image_id=str(file_id), _external=False)
+                elif file and file.filename:
+                    flash('Invalid file type. Please upload an image (PNG, JPG, JPEG, GIF, WEBP).', 'danger')
+                    return redirect(url_for('admin_dashboard'))
+        else:
+            # Use provided URL
+            final_image_url = image_url
+        
+        # Validate that we have an image
+        if not final_image_url:
+            flash('Please provide an image (upload or URL).', 'danger')
+            return redirect(url_for('admin_dashboard'))
+        
+        # Check if food item already exists
+        existing = db.menu_items.find_one({'name': food_name})
+        if existing:
+            flash(f'Food item "{food_name}" already exists.', 'warning')
+            return redirect(url_for('admin_dashboard'))
+        
+        # Insert the new food item
+        db.menu_items.insert_one({
+            'name': food_name,
+            'description': description,
+            'price': price,
+            'category': category,
+            'image_url': final_image_url,
+            'customization_hint': customization_hint,
+            'is_available': True,
+            'created_at': datetime.now()
+        })
+        
+        flash(f'Food item "{food_name}" added successfully!', 'success')
+    except Exception as e:
+        flash('Failed to add food item.', 'danger')
+        print(f"Add food error: {e}")
+    
+    return redirect(url_for('admin_dashboard'))
+
+@app.route('/admin/manage_menu')
+@admin_required
+def admin_manage_menu():
+    """Admin page to manage all menu items."""
+    user = get_logged_in_user()
+    
+    # Get all menu items
+    menu_items = list(db.menu_items.find().sort('created_at', -1))
+    
+    return render_template(
+        'admin_manage_menu.html',
+        menu_items=menu_items,
+        logged_in_user=user['username'],
+        is_admin=True
+    )
+
+@app.route('/admin/toggle_food_availability/<food_id>', methods=['POST'])
+@admin_required
+def toggle_food_availability(food_id):
+    """Toggle a food item's availability."""
+    try:
+        item = db.menu_items.find_one({'_id': ObjectId(food_id)})
+        if item:
+            new_status = not item.get('is_available', True)
+            db.menu_items.update_one(
+                {'_id': ObjectId(food_id)},
+                {'$set': {'is_available': new_status}}
+            )
+            status_text = 'available' if new_status else 'unavailable'
+            flash(f'{item["name"]} is now {status_text}.', 'success')
+        else:
+            flash('Food item not found.', 'warning')
+    except Exception as e:
+        flash('Failed to update availability.', 'danger')
+        print(f"Toggle availability error: {e}")
+    
+    return redirect(url_for('admin_manage_menu'))
+
+@app.route('/admin/delete_food/<food_id>', methods=['POST'])
+@admin_required
+def delete_food_item(food_id):
+    """Delete a food item from the menu."""
+    try:
+        item = db.menu_items.find_one({'_id': ObjectId(food_id)})
+        if item:
+            db.menu_items.delete_one({'_id': ObjectId(food_id)})
+            flash(f'{item["name"]} has been deleted.', 'success')
+        else:
+            flash('Food item not found.', 'warning')
+    except Exception as e:
+        flash('Failed to delete food item.', 'danger')
+        print(f"Delete food error: {e}")
+    
+    return redirect(url_for('admin_manage_menu'))
+
+@app.route('/admin/edit_food/<food_id>', methods=['POST'])
+@admin_required
+def edit_food_item(food_id):
+    """Edit/modify an existing food item. Admin only."""
+    try:
+        food_name = request.form['food_name'].strip()
+        description = request.form['description'].strip()
+        price = float(request.form['price'])
+        category = request.form.get('category', 'breakfast')
+        image_url = request.form.get('image_url', '').strip()
+        customization_hint = request.form.get('customization_hint', '').strip()
+        image_source = request.form.get('image_source', 'keep')  # 'keep', 'url', or 'upload'
+        
+        # Get current item to get existing image
+        current_item = db.menu_items.find_one({'_id': ObjectId(food_id)})
+        if not current_item:
+            flash('Food item not found.', 'danger')
+            return redirect(url_for('admin_manage_menu'))
+        
+        final_image_url = current_item.get('image_url', '')
+        
+        # Handle image based on source selection
+        if image_source == 'upload':
+            # Handle new file upload
+            if 'food_image' in request.files:
+                file = request.files['food_image']
+                if file and file.filename and allowed_file(file.filename):
+                    # Delete old GridFS image if it exists
+                    if final_image_url and '/food_image/' in final_image_url:
+                        try:
+                            old_image_id = final_image_url.split('/food_image/')[-1]
+                            fs.delete(ObjectId(old_image_id))
+                        except Exception:
+                            pass  # Old image cleanup failed, continue anyway
+                    
+                    # Secure the filename
+                    filename = secure_filename(file.filename)
+                    content_type = file.content_type or 'image/jpeg'
+                    # Store in GridFS
+                    file_id = fs.put(
+                        file.read(),
+                        filename=filename,
+                        content_type=content_type,
+                        food_name=food_name,
+                        uploaded_at=datetime.now()
+                    )
+                    final_image_url = url_for('serve_food_image', image_id=str(file_id), _external=False)
+                elif file and file.filename:
+                    flash('Invalid file type. Please upload an image (PNG, JPG, JPEG, GIF, WEBP).', 'danger')
+                    return redirect(url_for('admin_manage_menu'))
+        elif image_source == 'url' and image_url:
+            # Use new URL
+            final_image_url = image_url
+        # If image_source == 'keep', we keep the existing final_image_url
+        
+        # Validate that we have an image
+        if not final_image_url:
+            flash('Please provide an image.', 'danger')
+            return redirect(url_for('admin_manage_menu'))
+        
+        # Update the food item
+        result = db.menu_items.update_one(
+            {'_id': ObjectId(food_id)},
+            {'$set': {
+                'name': food_name,
+                'description': description,
+                'price': price,
+                'category': category,
+                'image_url': final_image_url,
+                'customization_hint': customization_hint,
+                'updated_at': datetime.now()
+            }}
+        )
+        
+        if result.modified_count:
+            flash(f'"{food_name}" has been updated successfully!', 'success')
+        else:
+            flash('No changes were made.', 'info')
+    except Exception as e:
+        flash('Failed to update food item.', 'danger')
+        print(f"Edit food error: {e}")
+    
+    return redirect(url_for('admin_manage_menu'))
+
+
+# Route to serve images from GridFS
+@app.route('/food_image/<image_id>')
+def serve_food_image(image_id):
+    """Serve an image stored in GridFS."""
+    try:
+        # Get the file from GridFS
+        file_data = fs.get(ObjectId(image_id))
+        # Return the file with correct content type
+        response = Response(
+            file_data.read(),
+            mimetype=file_data.content_type or 'image/jpeg'
+        )
+        # Add caching headers
+        response.headers['Cache-Control'] = 'public, max-age=31536000'
+        return response
+    except Exception as e:
+        print(f"Error serving image: {e}")
+        # Return a transparent 1x1 pixel as fallback
+        return Response(
+            b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\nIDATx\x9cc\x00\x01\x00\x00\x05\x00\x01\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82',
+            mimetype='image/png'
+        ), 404
+
 # ==================== MAIN ====================
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
+    port = int(os.environ.get('PORT', 8000))
     app.run(host='0.0.0.0', port=port, debug=False)
+

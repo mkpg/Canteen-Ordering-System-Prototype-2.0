@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Menu - Admin - CanteenOs</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+
+<body>
+    {% include 'navbar.html' %}
+    <div class="container my-5">
+        <div class="page-header">
+            <h1><span class="text-icon"><svg>
+                        <use href="#icon-pizza" />
+                    </svg></span> Manage Menu Items</h1>
+            <p class="text-muted">Add, edit, or remove food items from your menu</p>
+        </div>
+
+        <!-- Admin Action Bar -->
+        <div class="admin-action-bar">
+            <h4><svg style="width: 1.25rem; height: 1.25rem; margin-right: 0.5rem;">
+                    <use href="#icon-clipboard" />
+                </svg> All Menu Items ({{ menu_items|length }})</h4>
+            <div>
+                <button type="button" class="btn btn-add-food" data-toggle="modal" data-target="#addFoodModal">
+                    <span class="icon"><svg style="width: 1rem; height: 1rem;">
+                            <use href="#icon-plus" />
+                        </svg></span> Add New Item
+                </button>
+                <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-secondary ml-2">
+                    ← Back to Dashboard
+                </a>
+            </div>
+        </div>
+
+        {% if menu_items %}
+        <div class="row">
+            {% for item in menu_items %}
+            <div class="col-lg-4 col-md-6 mb-4">
+                <div class="card food-item {% if not item.is_available %}opacity-50{% endif %}">
+                    <img src="{{ item.image_url }}" alt="{{ item.name }}" class="card-img-top">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <h5 class="card-title mb-0">{{ item.name }}</h5>
+                            {% if item.is_available %}
+                            <span class="badge badge-success">Available</span>
+                            {% else %}
+                            <span class="badge badge-secondary">Unavailable</span>
+                            {% endif %}
+                        </div>
+                        <p class="description">{{ item.description }}</p>
+                        <p class="price">₹{{ item.price }}</p>
+                        <p class="text-muted small mb-3">
+                            <strong>Category:</strong> {{ item.category | capitalize }}<br>
+                            {% if item.customization_hint %}
+                            <strong>Hint:</strong> {{ item.customization_hint }}
+                            {% endif %}
+                        </p>
+                        <div class="action-buttons d-flex flex-wrap gap-2">
+                            <!-- Edit Button -->
+                            <button type="button" class="btn btn-info btn-sm" data-toggle="modal"
+                                data-target="#editFoodModal" data-id="{{ item._id }}" data-name="{{ item.name }}"
+                                data-description="{{ item.description }}" data-price="{{ item.price }}"
+                                data-category="{{ item.category }}" data-image="{{ item.image_url }}"
+                                data-hint="{{ item.customization_hint }}">
+                                <svg style="width: 0.9rem; height: 0.9rem;">
+                                    <use href="#icon-edit" />
+                                </svg> Edit
+                            </button>
+
+                            <!-- Toggle Availability -->
+                            <form action="{{ url_for('toggle_food_availability', food_id=item._id) }}" method="POST"
+                                class="d-inline">
+                                {% if item.is_available %}
+                                <button type="submit" class="btn btn-warning btn-sm">
+                                    <svg style="width: 0.9rem; height: 0.9rem;">
+                                        <use href="#icon-ban" />
+                                    </svg> Unavailable
+                                </button>
+                                {% else %}
+                                <button type="submit" class="btn btn-success btn-sm">
+                                    <svg style="width: 0.9rem; height: 0.9rem;">
+                                        <use href="#icon-check" />
+                                    </svg> Available
+                                </button>
+                                {% endif %}
+                            </form>
+
+                            <!-- Delete Button -->
+                            <form action="{{ url_for('delete_food_item', food_id=item._id) }}" method="POST"
+                                class="d-inline"
+                                onsubmit="return confirm('Are you sure you want to delete {{ item.name }}?');">
+                                <button type="submit" class="btn btn-danger btn-sm">
+                                    <svg style="width: 0.9rem; height: 0.9rem;">
+                                        <use href="#icon-trash" />
+                                    </svg> Delete
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-icon"><svg>
+                    <use href="#icon-plate" />
+                </svg></div>
+            <h3>No Menu Items Yet</h3>
+            <p>Start by adding your first food item to the menu!</p>
+            <button type="button" class="btn btn-add-food mt-3" data-toggle="modal" data-target="#addFoodModal">
+                <span class="icon"><svg style="width: 1rem; height: 1rem;">
+                        <use href="#icon-plus" />
+                    </svg></span> Add First Item
+            </button>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Add Food Modal -->
+    <div class="modal fade" id="addFoodModal" tabindex="-1" role="dialog" aria-labelledby="addFoodModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addFoodModalLabel"><svg
+                            style="width: 1.25rem; height: 1.25rem; margin-right: 0.5rem;">
+                            <use href="#icon-pizza" />
+                        </svg> Add New Food Item</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <form action="{{ url_for('add_food_item') }}" method="POST" enctype="multipart/form-data">
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label for="foodName2">Food Name</label>
+                            <input type="text" class="form-control" id="foodName2" name="food_name"
+                                placeholder="E.g., Masala Dosa" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="foodDescription2">Description</label>
+                            <textarea class="form-control" id="foodDescription2" name="description" rows="3"
+                                placeholder="A short description of the food item..." required></textarea>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="foodPrice2">Price (₹)</label>
+                                    <input type="number" class="form-control" id="foodPrice2" name="price"
+                                        placeholder="59" min="1" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="foodCategory2">Category</label>
+                                    <select class="form-control" id="foodCategory2" name="category">
+                                        <option value="breakfast">Breakfast</option>
+                                        <option value="lunch">Lunch</option>
+                                        <option value="snacks">Snacks</option>
+                                        <option value="beverages">Beverages</option>
+                                        <option value="desserts">Desserts</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Image Source Selection -->
+                        <div class="form-group">
+                            <label>Food Image <span class="text-danger">*</span></label>
+                            <div class="btn-group btn-group-toggle w-100 mb-3" data-toggle="buttons">
+                                <label class="btn btn-outline-primary active" id="addUrlBtn2">
+                                    <input type="radio" name="image_source" value="url" checked>
+                                    <svg style="width: 1rem; height: 1rem; margin-right: 0.25rem;">
+                                        <use href="#icon-link" />
+                                    </svg>
+                                    Enter URL
+                                </label>
+                                <label class="btn btn-outline-primary" id="addUploadBtn2">
+                                    <input type="radio" name="image_source" value="upload">
+                                    <svg style="width: 1rem; height: 1rem; margin-right: 0.25rem;">
+                                        <use href="#icon-upload" />
+                                    </svg>
+                                    Upload File
+                                </label>
+                            </div>
+
+                            <!-- URL Input -->
+                            <div id="addUrlInput2">
+                                <input type="url" class="form-control" id="foodImage2" name="image_url"
+                                    placeholder="https://example.com/image.jpg">
+                                <small class="form-text text-muted">Enter a direct URL to the food image</small>
+                            </div>
+
+                            <!-- File Upload -->
+                            <div id="addFileInput2" style="display: none;">
+                                <div class="custom-file">
+                                    <input type="file" class="custom-file-input" id="addFoodImageFile2"
+                                        name="food_image" accept="image/png,image/jpeg,image/jpg,image/gif,image/webp">
+                                    <label class="custom-file-label" for="addFoodImageFile2">Choose image
+                                        file...</label>
+                                </div>
+                                <small class="form-text text-muted">Supported: PNG, JPG, JPEG, GIF, WEBP (Max
+                                    5MB)</small>
+                                <div id="addImagePreview2" class="mt-2" style="display: none;">
+                                    <img src="" alt="Preview" class="img-thumbnail" style="max-height: 150px;">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="customizationHint2">Customization Hint</label>
+                            <input type="text" class="form-control" id="customizationHint2" name="customization_hint"
+                                placeholder="E.g., extra cheese, no onion">
+                            <small class="form-text text-muted">Example customization shown to customers</small>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-add-food"><svg
+                                style="width: 1rem; height: 1rem; margin-right: 0.35rem;">
+                                <use href="#icon-plus" />
+                            </svg> Add Food Item</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Food Modal -->
+    <div class="modal fade" id="editFoodModal" tabindex="-1" role="dialog" aria-labelledby="editFoodModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8);">
+                    <h5 class="modal-title" id="editFoodModalLabel"><svg
+                            style="width: 1.25rem; height: 1.25rem; margin-right: 0.5rem;">
+                            <use href="#icon-edit" />
+                        </svg> Edit Food Item</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <form id="editFoodForm" method="POST" enctype="multipart/form-data">
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label for="editFoodName">Food Name</label>
+                            <input type="text" class="form-control" id="editFoodName" name="food_name" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="editFoodDescription">Description</label>
+                            <textarea class="form-control" id="editFoodDescription" name="description" rows="3"
+                                required></textarea>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="editFoodPrice">Price (₹)</label>
+                                    <input type="number" class="form-control" id="editFoodPrice" name="price" min="1"
+                                        required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="editFoodCategory">Category</label>
+                                    <select class="form-control" id="editFoodCategory" name="category">
+                                        <option value="breakfast">Breakfast</option>
+                                        <option value="lunch">Lunch</option>
+                                        <option value="snacks">Snacks</option>
+                                        <option value="beverages">Beverages</option>
+                                        <option value="desserts">Desserts</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Current Image Preview -->
+                        <div class="form-group">
+                            <label>Current Image</label>
+                            <div id="currentImagePreview" class="mb-2">
+                                <img src="" alt="Current" class="img-thumbnail" style="max-height: 100px;">
+                            </div>
+                        </div>
+
+                        <!-- Image Source Selection for Edit -->
+                        <div class="form-group">
+                            <label>Change Image</label>
+                            <div class="btn-group btn-group-toggle w-100 mb-3" data-toggle="buttons">
+                                <label class="btn btn-outline-secondary active" id="editKeepBtn">
+                                    <input type="radio" name="image_source" value="keep" checked>
+                                    Keep Current
+                                </label>
+                                <label class="btn btn-outline-primary" id="editUrlBtn">
+                                    <input type="radio" name="image_source" value="url">
+                                    <svg style="width: 1rem; height: 1rem; margin-right: 0.25rem;">
+                                        <use href="#icon-link" />
+                                    </svg>
+                                    New URL
+                                </label>
+                                <label class="btn btn-outline-primary" id="editUploadBtn">
+                                    <input type="radio" name="image_source" value="upload">
+                                    <svg style="width: 1rem; height: 1rem; margin-right: 0.25rem;">
+                                        <use href="#icon-upload" />
+                                    </svg>
+                                    Upload New
+                                </label>
+                            </div>
+
+                            <!-- URL Input for Edit -->
+                            <div id="editUrlInput" style="display: none;">
+                                <input type="url" class="form-control" id="editFoodImage" name="image_url">
+                                <small class="form-text text-muted">Enter a new URL for the food image</small>
+                            </div>
+
+                            <!-- File Upload for Edit -->
+                            <div id="editFileInput" style="display: none;">
+                                <div class="custom-file">
+                                    <input type="file" class="custom-file-input" id="editFoodImageFile"
+                                        name="food_image" accept="image/png,image/jpeg,image/jpg,image/gif,image/webp">
+                                    <label class="custom-file-label" for="editFoodImageFile">Choose new image
+                                        file...</label>
+                                </div>
+                                <small class="form-text text-muted">Supported: PNG, JPG, JPEG, GIF, WEBP (Max
+                                    5MB)</small>
+                                <div id="editImagePreview" class="mt-2" style="display: none;">
+                                    <img src="" alt="Preview" class="img-thumbnail" style="max-height: 150px;">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="editCustomizationHint">Customization Hint</label>
+                            <input type="text" class="form-control" id="editCustomizationHint"
+                                name="customization_hint">
+                            <small class="form-text text-muted">Example customization shown to customers</small>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-info"><svg
+                                style="width: 1rem; height: 1rem; margin-right: 0.35rem;">
+                                <use href="#icon-save" />
+                            </svg> Save Changes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        // Populate Edit Modal with data
+        $('#editFoodModal').on('show.bs.modal', function (event) {
+            var button = $(event.relatedTarget);
+            var id = button.data('id');
+            var name = button.data('name');
+            var description = button.data('description');
+            var price = button.data('price');
+            var category = button.data('category');
+            var image = button.data('image');
+            var hint = button.data('hint');
+
+            var modal = $(this);
+            modal.find('#editFoodName').val(name);
+            modal.find('#editFoodDescription').val(description);
+            modal.find('#editFoodPrice').val(price);
+            modal.find('#editFoodCategory').val(category);
+            modal.find('#editFoodImage').val(image);
+            modal.find('#editCustomizationHint').val(hint);
+
+            // Show current image preview
+            modal.find('#currentImagePreview img').attr('src', image);
+
+            // Reset to "Keep Current" mode
+            modal.find('#editKeepBtn').addClass('active');
+            modal.find('#editUrlBtn, #editUploadBtn').removeClass('active');
+            modal.find('#editUrlInput, #editFileInput').hide();
+
+            // Set form action URL
+            modal.find('#editFoodForm').attr('action', '/admin/edit_food/' + id);
+        });
+
+        // Toggle for Add Modal (menu page)
+        document.getElementById('addUrlBtn2').addEventListener('click', function () {
+            document.getElementById('addUrlInput2').style.display = 'block';
+            document.getElementById('addFileInput2').style.display = 'none';
+        });
+
+        document.getElementById('addUploadBtn2').addEventListener('click', function () {
+            document.getElementById('addUrlInput2').style.display = 'none';
+            document.getElementById('addFileInput2').style.display = 'block';
+        });
+
+        // Toggle for Edit Modal
+        document.getElementById('editKeepBtn').addEventListener('click', function () {
+            document.getElementById('editUrlInput').style.display = 'none';
+            document.getElementById('editFileInput').style.display = 'none';
+        });
+
+        document.getElementById('editUrlBtn').addEventListener('click', function () {
+            document.getElementById('editUrlInput').style.display = 'block';
+            document.getElementById('editFileInput').style.display = 'none';
+        });
+
+        document.getElementById('editUploadBtn').addEventListener('click', function () {
+            document.getElementById('editUrlInput').style.display = 'none';
+            document.getElementById('editFileInput').style.display = 'block';
+        });
+
+        // File input label update and preview
+        document.getElementById('addFoodImageFile2').addEventListener('change', function () {
+            var fileName = this.files[0] ? this.files[0].name : 'Choose image file...';
+            this.nextElementSibling.textContent = fileName;
+            if (this.files[0]) {
+                var reader = new FileReader();
+                reader.onload = function (e) {
+                    var preview = document.getElementById('addImagePreview2');
+                    preview.style.display = 'block';
+                    preview.querySelector('img').src = e.target.result;
+                };
+                reader.readAsDataURL(this.files[0]);
+            }
+        });
+
+        document.getElementById('editFoodImageFile').addEventListener('change', function () {
+            var fileName = this.files[0] ? this.files[0].name : 'Choose new image file...';
+            this.nextElementSibling.textContent = fileName;
+            if (this.files[0]) {
+                var reader = new FileReader();
+                reader.onload = function (e) {
+                    var preview = document.getElementById('editImagePreview');
+                    preview.style.display = 'block';
+                    preview.querySelector('img').src = e.target.result;
+                };
+                reader.readAsDataURL(this.files[0]);
+            }
+        });
+    </script>
+
+    <style>
+        .opacity-50 {
+            opacity: 0.6;
+        }
+
+        .empty-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+        }
+
+        .empty-icon svg {
+            width: 4rem;
+            height: 4rem;
+            stroke: var(--text-secondary);
+        }
+
+        .action-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .action-buttons .btn {
+            flex: 0 0 auto;
+        }
+    </style>
+</body>
+
+</html>
+

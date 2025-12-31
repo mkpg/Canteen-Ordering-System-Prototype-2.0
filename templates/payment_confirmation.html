@@ -1,21 +1,23 @@
-{% include 'navbar.html' %}
 <!DOCTYPE html>
 <html lang="en">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Order Confirmed - MyCanteenApp</title>
+    <title>Order Confirmed - CanteenOs</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 </head>
 
 <body>
+    {% include 'navbar.html' %}
     <div class="container my-5">
         <div class="card" style="max-width: 600px; margin: 0 auto;">
             <div class="card-body text-center p-5">
                 <div class="mb-4">
-                    <span style="font-size: 5rem;">✅</span>
+                    <span class="display-icon"><svg style="width: 5rem; height: 5rem; stroke: var(--success-color);">
+                            <use href="#icon-check-circle" />
+                        </svg></span>
                 </div>
                 <h2 class="text-success mb-3">Payment Successful!</h2>
                 <p class="text-muted mb-4">Your order has been placed and is being prepared.</p>
@@ -44,10 +46,14 @@
 
                 <div class="mt-4">
                     <a href="{{ url_for('order_history') }}" class="btn btn-primary mr-2">
-                        📋 Track Order
+                        <span class="btn-icon"><svg>
+                                <use href="#icon-clipboard" />
+                            </svg></span> Track Order
                     </a>
                     <a href="{{ url_for('menu') }}" class="btn btn-outline-primary">
-                        🍽️ Order More
+                        <span class="btn-icon"><svg>
+                                <use href="#icon-plate" />
+                            </svg></span> Order More
                     </a>
                 </div>
             </div>
@@ -59,3 +65,4 @@
 </body>
 
 </html>
+

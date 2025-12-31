@@ -1,20 +1,22 @@
-{% include 'navbar.html' %}
 <!DOCTYPE html>
 <html lang="en">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Profile - MyCanteenApp</title>
+    <title>My Profile - CanteenOs</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 </head>
 
 <body>
+    {% include 'navbar.html' %}
     <div class="container my-5">
         <div class="profile-card fade-in">
             <div class="text-center mb-4">
-                <div style="font-size: 4rem;">👤</div>
+                <div class="display-icon" style="font-size: 4rem;"><svg style="width: 4rem; height: 4rem;">
+                        <use href="#icon-user" />
+                    </svg></div>
                 <h3>{{ user.first_name }} {{ user.last_name }}</h3>
                 <p class="text-muted">@{{ user.username }}</p>
                 {% if user.is_admin %}
@@ -23,9 +25,15 @@
             </div>
 
             <div class="profile-info">
-                <p><strong>📧 Email:</strong> {{ user.email }}</p>
-                <p><strong>📱 Phone:</strong> {{ user.phone }}</p>
-                <p><strong>📅 Member Since:</strong>
+                <p><strong><span class="text-icon"><svg>
+                                <use href="#icon-mail" />
+                            </svg></span> Email:</strong> {{ user.email }}</p>
+                <p><strong><span class="text-icon"><svg>
+                                <use href="#icon-phone" />
+                            </svg></span> Phone:</strong> {{ user.phone }}</p>
+                <p><strong><span class="text-icon"><svg>
+                                <use href="#icon-calendar" />
+                            </svg></span> Member Since:</strong>
                     {% if user.created_at %}
                     {{ user.created_at.strftime('%B %d, %Y') }}
                     {% else %}
@@ -58,13 +66,25 @@
 
             <div class="mt-4">
                 <a href="{{ url_for('edit_profile') }}" class="btn btn-primary btn-block">
-                    ✏️ Edit Profile
+                    <span class="btn-icon"><svg>
+                            <use href="#icon-edit" />
+                        </svg></span> Edit Profile
                 </a>
                 <a href="{{ url_for('change_password') }}" class="btn btn-outline-secondary btn-block">
-                    🔒 Change Password
+                    <span class="btn-icon"><svg>
+                            <use href="#icon-lock" />
+                        </svg></span> Change Password
                 </a>
                 <a href="{{ url_for('order_history') }}" class="btn btn-outline-primary btn-block">
-                    📋 View Order History
+                    <span class="btn-icon"><svg>
+                            <use href="#icon-clipboard" />
+                        </svg></span> View Order History
+                </a>
+                <hr class="my-4">
+                <a href="{{ url_for('logout') }}" class="btn btn-danger btn-block">
+                    <span class="btn-icon"><svg>
+                            <use href="#icon-logout" />
+                        </svg></span> Logout
                 </a>
             </div>
         </div>
