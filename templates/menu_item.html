@@ -97,6 +97,18 @@
                         <div class="food-header">
                             <h5 class="food-name">{{ item.name }}</h5>
                             <span class="food-category">{{ item.category|capitalize }}</span>
+                            {% if user_role == 'core_admin' and item.organization_id %}
+                            <span class="food-org-badge"
+                                style="display: block; font-size: 0.75rem; color: #667eea; font-weight: 600; margin-top: 4px;">
+                                <svg style="width: 12px; height: 12px; margin-right: 2px; vertical-align: middle;"
+                                    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                                    stroke="currentColor" stroke-width="2">
+                                    <rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect>
+                                    <path d="M9 22v-4h6v4"></path>
+                                </svg>
+                                {{ org_names.get(item.organization_id|string, 'Unknown Org') }}
+                            </span>
+                            {% endif %}
                         </div>
                         <p class="food-description">{{ item.description }}</p>
                         <div class="food-price">₹{{ item.price }}</div>

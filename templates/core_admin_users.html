@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>All Users - CanteenOs</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+
+<body>
+    {% include 'navbar.html' %}
+    <div class="container my-5">
+        <div class="page-header">
+            <h1><span class="text-icon"><svg>
+                        <use href="#icon-users" />
+                    </svg></span> All Users</h1>
+            <p class="text-muted">View and manage users across all organizations</p>
+        </div>
+
+        <!-- Users Table -->
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Users ({{ users|length }})</h5>
+                <a href="{{ url_for('core_admin_dashboard') }}" class="btn btn-sm btn-outline-secondary">Back to
+                    Dashboard</a>
+            </div>
+            <div class="card-body p-0">
+                {% if users %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Username</th>
+                                <th>Email</th>
+                                <th>Organization</th>
+                                <th>Role</th>
+                                <th>Joined</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user in users %}
+                            <tr>
+                                <td>{{ user.first_name }} {{ user.last_name }}</td>
+                                <td><strong>{{ user.username }}</strong></td>
+                                <td>{{ user.email }}</td>
+                                <td>
+                                    {% if user.org_name and user.org_name != 'No Organization' %}
+                                    <span class="badge badge-info">{{ user.org_name }}</span>
+                                    {% else %}
+                                    <span class="badge badge-secondary">None</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if user.role == 'core_admin' %}
+                                    <span class="badge badge-danger">Core Admin</span>
+                                    {% elif user.role == 'org_admin' %}
+                                    <span class="badge badge-warning">Org Admin</span>
+                                    {% else %}
+                                    <span class="badge badge-secondary">User</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if user.created_at %}
+                                    {{ user.created_at.strftime('%b %d, %Y') }}
+                                    {% else %}
+                                    -
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if user.username != current_user and user.role != 'core_admin' %}
+                                    <form action="{{ url_for('core_admin_delete_user', username=user.username) }}"
+                                        method="POST" class="d-inline">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger"
+                                            onclick="return confirm('Delete user {{ user.username }} and all their data?');">
+                                            Delete
+                                        </button>
+                                    </form>
+                                    {% elif user.role == 'core_admin' %}
+                                    <span class="text-muted">Protected</span>
+                                    {% else %}
+                                    <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-5 text-muted">
+                    <svg style="width: 3rem; height: 3rem; margin-bottom: 1rem; opacity: 0.5;">
+                        <use href="#icon-users" />
+                    </svg>
+                    <p>No users found</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</body>
+
+</html>

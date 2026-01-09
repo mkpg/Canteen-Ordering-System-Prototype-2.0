@@ -52,6 +52,18 @@
                     <input type="password" class="form-control" id="password" name="password"
                         placeholder="Enter your password" required>
                 </div>
+                {% if organizations and organizations|length > 0 %}
+                <div class="form-group">
+                    <label for="organization_id">Select Organization</label>
+                    <select class="form-control" id="organization_id" name="organization_id">
+                        <option value="">-- Select your organization --</option>
+                        {% for org in organizations %}
+                        <option value="{{ org._id }}">{{ org.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <small class="form-text text-muted">Select the organization you want to access</small>
+                </div>
+                {% endif %}
                 <button type="submit" class="btn btn-primary btn-block btn-lg">Sign In</button>
             </form>
 

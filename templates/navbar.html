@@ -15,6 +15,15 @@
         <div class="collapse navbar-collapse" id="navbarMain">
             {% if logged_in_user %}
             <ul class="navbar-nav ml-auto align-items-center">
+                <!-- Organization Badge -->
+                {% if current_org %}
+                <li class="nav-item mr-2">
+                    <span class="badge badge-light" style="font-size: 0.85rem; padding: 0.4rem 0.7rem;">
+                        {{ current_org.name }}
+                    </span>
+                </li>
+                {% endif %}
+
                 <!-- Menu Link -->
                 <li class="nav-item">
                     <a class="nav-link" href="{{ url_for('menu') }}">
@@ -45,6 +54,26 @@
                     </a>
                 </li>
 
+                <!-- Core Admin Dashboard -->
+                {% if is_core_admin %}
+                <li class="nav-item">
+                    <a class="nav-link text-warning" href="{{ url_for('core_admin_dashboard') }}">
+                        <span class="nav-icon"><svg>
+                                <use href="#icon-shield" />
+                            </svg></span> Core Admin
+                    </a>
+                </li>
+                {% elif is_admin %}
+                <!-- Org Admin Dashboard -->
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('admin_dashboard') }}">
+                        <span class="nav-icon"><svg>
+                                <use href="#icon-bar-chart" />
+                            </svg></span> Admin
+                    </a>
+                </li>
+                {% endif %}
+
                 <!-- Feedback Link -->
                 <li class="nav-item">
                     <a class="nav-link" href="{{ url_for('feedback') }}">
@@ -53,6 +82,8 @@
                             </svg></span> Feedback
                     </a>
                 </li>
+
+
 
                 <!-- Profile Button - Links directly to profile page -->
                 <li class="nav-item">

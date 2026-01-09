@@ -93,11 +93,31 @@
                     </div>
                 </div>
 
+                <!-- Organization Selection for Regular Users -->
+                {% if organizations %}
+                <div class="form-group" id="org_select_group">
+                    <label for="organization_id">Select Your Organization <span class="text-danger">*</span></label>
+                    <select class="form-control" id="organization_id" name="organization_id">
+                        <option value="">-- Select Organization --</option>
+                        {% for org in organizations %}
+                        <option value="{{ org._id }}">{{ org.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <small class="form-text text-muted">Select the organization you belong to</small>
+                </div>
+                {% else %}
+                <div class="alert alert-warning" id="no_org_alert">
+                    <small>No organizations available yet. Contact your admin for an organization admin code.</small>
+                </div>
+                {% endif %}
+
                 <div class="form-group">
-                    <label for="admin_code">Admin Code <small class="text-muted">(Optional)</small></label>
+                    <label for="admin_code">Admin Code <small class="text-muted">(Organization Admins
+                            Only)</small></label>
                     <input type="text" class="form-control" id="admin_code" name="admin_code"
-                        placeholder="Enter admin code if you have one">
-                    <small class="form-text text-muted">Leave blank for regular user registration</small>
+                        placeholder="E.g., ORG-A1B2C3">
+                    <small class="form-text text-muted">Enter your organization's admin code to register as an admin.
+                        Regular users leave this blank.</small>
                 </div>
 
                 <button type="submit" class="btn btn-primary btn-block btn-lg">Create Account</button>
@@ -113,6 +133,23 @@
 
     <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        // If admin code is entered, organization selection is not required
+        document.getElementById('admin_code').addEventListener('input', function () {
+            var orgSelect = document.getElementById('organization_id');
+            if (this.value.trim()) {
+                if (orgSelect) {
+                    orgSelect.removeAttribute('required');
+                    document.getElementById('org_select_group').style.display = 'none';
+                }
+            } else {
+                if (orgSelect) {
+                    document.getElementById('org_select_group').style.display = 'block';
+                }
+            }
+        });
+    </script>
 </body>
 
 </html>
