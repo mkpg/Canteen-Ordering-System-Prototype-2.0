@@ -8,6 +8,11 @@ import os
 import re
 import certifi
 import base64
+import random
+import string
+from urllib.parse import quote
+import pyotp
+import qrcode
 from flask import Flask, render_template, request, redirect, url_for, session, flash, Response, send_file
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
@@ -17,6 +22,7 @@ from datetime import datetime, timedelta
 from bson.objectid import ObjectId
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
 from flask_mail import Mail, Message
+from flask_compress import Compress
 from dotenv import load_dotenv
 from io import BytesIO
 
@@ -24,11 +30,15 @@ from io import BytesIO
 load_dotenv()
 
 app = Flask(__name__)
+Compress(app)  # Enable gzip compression for all responses
 
 # ==================== SECURE CONFIGURATION ====================
 # All sensitive data MUST be in environment variables
 app.secret_key = os.getenv('SECRET_KEY', os.urandom(24).hex())
 ADMIN_CODE = os.getenv('ADMIN_CODE', '2000')
+CORE_ADMIN_EMAIL = os.getenv('CORE_ADMIN_EMAIL', 'admin@canteenos.com')
+CORE_ADMIN_PASSWORD = os.getenv('CORE_ADMIN_PASSWORD', 'admin123')
+CORE_ADMIN_USERNAME = os.getenv('CORE_ADMIN_USERNAME', 'core_admin')
 
 # Secure session configuration
 app.config.update(
@@ -38,13 +48,26 @@ app.config.update(
     PERMANENT_SESSION_LIFETIME=timedelta(hours=24)
 )
 
-# MongoDB setup with SSL certificate for Atlas
+# MongoDB setup with SSL certificate for Atlas - OPTIMIZED for performance
 MONGO_URI = os.getenv('MONGO_URI', 'mongodb://localhost:27017/')
-client = MongoClient(MONGO_URI, tlsCAFile=certifi.where())
+client = MongoClient(
+    MONGO_URI, 
+    tlsCAFile=certifi.where(),
+    # Connection pooling for better performance
+    maxPoolSize=50,
+    minPoolSize=5,
+    # Reduce timeouts for faster failure detection
+    serverSelectionTimeoutMS=5000,
+    connectTimeoutMS=10000,
+    socketTimeoutMS=20000,
+    # Keep connections alive
+    maxIdleTimeMS=45000
+)
 db = client['canteen_app']
 users_col = db['users']
 feedback_col = db['feedback']
 orders_col = db['orders']
+organizations_col = db['organizations']
 
 # GridFS for storing uploaded images in MongoDB
 fs = GridFS(db, collection='food_images')
@@ -56,13 +79,72 @@ def allowed_file(filename):
     """Check if filename has an allowed image extension."""
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+def generate_qr_data_uri(data):
+    """Generate a PNG QR code data URI for inline display."""
+    qr = qrcode.QRCode(box_size=8, border=2)
+    qr.add_data(data)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white")
+    buf = BytesIO()
+    img.save(buf, format='PNG')
+    buf.seek(0)
+    return 'data:image/png;base64,' + base64.b64encode(buf.getvalue()).decode('ascii')
+
+def verify_remember_device_cookie():
+    """Return payload from remember-device cookie if valid; otherwise None."""
+    token = request.cookies.get('remember_device')
+    if not token:
+        return None
+    try:
+        data = serializer.loads(
+            token,
+            salt='remember-device',
+            max_age=60 * 60 * 24 * 30  # 30 days
+        )
+        return data
+    except Exception:
+        return None
+
+def set_remember_device_cookie(resp, username, organization_id):
+    """Attach a signed remember-device cookie to the response."""
+    payload = {
+        'u': username,
+        'org': str(organization_id) if organization_id else '',
+    }
+    token = serializer.dumps(payload, salt='remember-device')
+    resp.set_cookie(
+        'remember_device',
+        token,
+        max_age=60 * 60 * 24 * 30,
+        httponly=True,
+        secure=False,  # set True when HTTPS is enforced
+        samesite='Lax'
+    )
+    return resp
+
+def clear_remember_device_cookie(resp):
+    """Remove remember-device cookie from client."""
+    resp.delete_cookie('remember_device')
+    return resp
+
+def complete_login(user, organization_id_str=None):
+    """Finalize login session for a user and chosen organization."""
+    session['username'] = user['username']
+    session['active_organization_id'] = organization_id_str or None
+    session.permanent = True
+
 # Create indexes for better performance
 users_col.create_index('username', unique=True)
 users_col.create_index('email', unique=True)
 orders_col.create_index('username')
 orders_col.create_index('status')
+orders_col.create_index([('username', 1), ('status', 1)])  # Compound index for user orders
+orders_col.create_index([('organization_id', 1), ('status', 1)])  # Org-scoped orders
+orders_col.create_index('order_time')  # For sorting
 db.menu_items.create_index('category')
 db.menu_items.create_index('is_available')
+db.menu_items.create_index([('organization_id', 1), ('is_available', 1)])  # Org-scoped menu
+organizations_col.create_index('is_active')
 
 # Flask-Mail Configuration (credentials from environment)
 app.config.update(
@@ -123,21 +205,160 @@ def login_required(f):
     return decorated_function
 
 def admin_required(f):
-    """Decorator to require admin access for routes."""
+    """Decorator to require org admin or core admin access for routes."""
     from functools import wraps
     @wraps(f)
     def decorated_function(*args, **kwargs):
         user = get_logged_in_user()
-        if not user or not user.get('is_admin'):
+        if not user:
+            flash('Please log in to access this page.', 'warning')
+            return redirect(url_for('login'))
+        # Allow core admin or org admin
+        if not (user.get('role') == 'core_admin' or user.get('role') == 'org_admin' or user.get('is_admin')):
             flash('Admin access required.', 'danger')
             return redirect(url_for('login'))
         return f(*args, **kwargs)
     return decorated_function
 
-# Context processor to make cart_count available in all templates
+def core_admin_required(f):
+    """Decorator to require core admin access for routes."""
+    from functools import wraps
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        user = get_logged_in_user()
+        if not user or user.get('role') != 'core_admin':
+            flash('Core Admin access required.', 'danger')
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+def generate_org_admin_code():
+    """Generate a unique organization admin code like ORG-A1B2C3."""
+    while True:
+        code = 'ORG-' + ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+        # Check if code already exists
+        if not organizations_col.find_one({'admin_code': code}):
+            return code
+
+def get_user_organization(user):
+    """Get the organization object for a user (legacy, checks user's org field)."""
+    if user and user.get('organization_id'):
+        return organizations_col.find_one({'_id': user['organization_id']})
+    return None
+
+def get_active_organization():
+    """Get the currently active organization from session."""
+    if 'active_organization_id' in session and session['active_organization_id']:
+        try:
+            return organizations_col.find_one({'_id': ObjectId(session['active_organization_id'])})
+        except:
+            pass
+    return None
+
+def get_active_organization_id():
+    """Get the currently active organization ID from session."""
+    if 'active_organization_id' in session and session['active_organization_id']:
+        try:
+            return ObjectId(session['active_organization_id'])
+        except:
+            pass
+    return None
+
+def get_all_organizations():
+    """Get all active organizations for dropdowns."""
+    return list(organizations_col.find({'is_active': True}).sort('name', 1))
+
+def clear_pending_mfa_session():
+    """Remove all MFA-related session keys."""
+    for key in [
+        'pending_mfa_user',
+        'pending_org_id',
+        'pending_email_otp',
+        'pending_email_otp_expiry'
+    ]:
+        session.pop(key, None)
+
+def start_mfa_flow(user, organization_id=None):
+    """Kick off email + TOTP verification after password check."""
+    clear_pending_mfa_session()
+
+    # Ensure user has a TOTP secret; create if first-time setup
+    if not user.get('totp_secret'):
+        secret = pyotp.random_base32()
+        users_col.update_one({'_id': user['_id']}, {'$set': {'totp_secret': secret}})
+        user['totp_secret'] = secret
+
+    email_otp = f"{random.randint(100000, 999999)}"
+    session['pending_mfa_user'] = user['username']
+    session['pending_org_id'] = str(organization_id) if organization_id else ''
+    session['pending_email_otp'] = email_otp
+    session['pending_email_otp_expiry'] = (datetime.utcnow() + timedelta(minutes=5)).timestamp()
+
+    msg = Message(
+        "Your CanteenOs login code",
+        sender=app.config['MAIL_USERNAME'],
+        recipients=[user['email']],
+        body=(
+            f"Hi {user['first_name']},\n\n"
+            f"Your login verification code is {email_otp}.\n"
+            "It expires in 5 minutes. If this wasn't you, you can ignore this email.\n\n"
+            "- CanteenOs Team"
+        )
+    )
+    try:
+        mail.send(msg)
+        flash('Check your email for the 6-digit code. Enter it along with your TOTP.', 'info')
+    except Exception as e:
+        flash('Could not send verification email. Please try again.', 'danger')
+        print(f"MFA email send error: {e}")
+
+# Context processor to make cart_count and organization available in all templates
 @app.context_processor
-def inject_cart_count():
-    return dict(cart_count=get_pending_cart_count())
+def inject_global_vars():
+    user = get_logged_in_user()
+    # Use active org from session (selected at login)
+    org = get_active_organization() if user else None
+    return dict(
+        cart_count=get_pending_cart_count(),
+        current_org=org,
+        is_core_admin=user.get('role') == 'core_admin' if user else False,
+        user_avatar=user.get('avatar', 'dosa') if user else 'dosa'
+    )
+
+# ==================== SEED CORE ADMIN ====================
+
+def seed_core_admin():
+    """Create or update Core Admin account from environment variables."""
+    existing = users_col.find_one({'email': CORE_ADMIN_EMAIL})
+    if not existing:
+        users_col.insert_one({
+            'first_name': 'Core',
+            'last_name': 'Admin',
+            'username': CORE_ADMIN_USERNAME,
+            'password': generate_password_hash(CORE_ADMIN_PASSWORD),
+            'email': CORE_ADMIN_EMAIL,
+            'phone': '0000000000',
+            'role': 'core_admin',
+            'is_admin': True,
+            'organization_id': None,  # Core admin doesn't belong to any org
+            'created_at': datetime.now()
+        })
+        print(f"✅ Core Admin account created (username: {CORE_ADMIN_USERNAME})")
+    else:
+        # Always update Core Admin to match environment variables
+        users_col.update_one(
+            {'email': CORE_ADMIN_EMAIL},
+            {'$set': {
+                'role': 'core_admin',
+                'is_admin': True,
+                'username': CORE_ADMIN_USERNAME,
+                'password': generate_password_hash(CORE_ADMIN_PASSWORD)
+            }}
+        )
+        print("✅ Core Admin credentials synced from environment")
+
+# Seed Core Admin on startup
+seed_core_admin()
 
 # ==================== SEED DEFAULT MENU ====================
 
@@ -237,27 +458,178 @@ def index():
     else:
         return redirect(url_for('login'))
 
+@app.route('/about')
+def about():
+    """About Us page."""
+    user = get_logged_in_user()
+    return render_template(
+        'about.html',
+        logged_in_user=user['username'] if user else None,
+        is_admin=user.get('is_admin', False) if user else False
+    )
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    """User login page."""
+    """User login page with organization selection."""
+    # If already logged in, redirect to menu
+    if 'username' in session:
+        flash('You are already logged in. Logout first to switch organization.', 'info')
+        return redirect(url_for('menu'))
+
+    # Reset any leftover MFA session artifacts
+    clear_pending_mfa_session()
+    
+    organizations = get_all_organizations()
+    
     if request.method == 'POST':
         username = request.form['username'].strip()
         password = request.form['password']
+        organization_id_str = request.form.get('organization_id', '')
+        remember_device_opt_in = request.form.get('remember_device') == 'on'
         
         user = users_col.find_one({'username': username})
+        remember_cookie = verify_remember_device_cookie()
         
         if user and check_password_hash(user['password'], password):
-            session['username'] = username
-            flash(f'Welcome back, {user["first_name"]}!', 'success')
-            return redirect(url_for('menu'))
+            # Core admin doesn't need to select organization
+            if user.get('role') == 'core_admin':
+                # If a valid remember cookie exists, skip MFA
+                if remember_cookie and remember_cookie.get('u') == username:
+                    complete_login(user, None)
+                    resp = redirect(url_for('core_admin_dashboard'))
+                    resp = set_remember_device_cookie(resp, username, None)
+                    flash(f'Welcome back, {user["first_name"]}! Device trusted.', 'success')
+                    return resp
+                start_mfa_flow(user, None)
+                session['remember_device_opt_in'] = remember_device_opt_in
+                return redirect(url_for('verify_mfa'))
+            
+            # Regular users and org admins need to select an organization
+            if organizations and not organization_id_str:
+                flash('Please select an organization.', 'warning')
+                return render_template('login.html', organizations=organizations)
+            
+            # Validate organization selection
+            if organization_id_str:
+                try:
+                    selected_org_id = ObjectId(organization_id_str)
+                    # Check if user belongs to this organization
+                    user_orgs = user.get('organization_ids', [])
+                    # Also check legacy single org field
+                    if user.get('organization_id'):
+                        if user['organization_id'] not in user_orgs:
+                            user_orgs.append(user['organization_id'])
+                    
+                    if selected_org_id not in user_orgs and user.get('organization_id') != selected_org_id:
+                        flash('You are not a member of this organization.', 'danger')
+                        return render_template('login.html', organizations=organizations)
+                    
+                    # Validate org is active
+                    org = organizations_col.find_one({'_id': selected_org_id, 'is_active': True})
+                    if not org:
+                        flash('This organization is not active.', 'danger')
+                        return render_template('login.html', organizations=organizations)
+                    
+                    # If a valid remember cookie exists for this user+org, bypass MFA
+                    if remember_cookie and remember_cookie.get('u') == username and remember_cookie.get('org') == str(selected_org_id):
+                        complete_login(user, str(selected_org_id))
+                        resp = redirect(url_for('menu'))
+                        resp = set_remember_device_cookie(resp, username, selected_org_id)
+                        flash(f'Welcome back, {user["first_name"]}! Device trusted.', 'success')
+                        return resp
+
+                    # Otherwise proceed to MFA
+                    start_mfa_flow(user, selected_org_id)
+                    session['remember_device_opt_in'] = remember_device_opt_in
+                    return redirect(url_for('verify_mfa'))
+                except Exception as e:
+                    flash('Invalid organization selected.', 'danger')
+                    print(f"Login org error: {e}")
+                    return render_template('login.html', organizations=organizations)
+            else:
+                # No organizations in system, just log in
+                if remember_cookie and remember_cookie.get('u') == username and not remember_cookie.get('org'):
+                    complete_login(user, None)
+                    resp = redirect(url_for('menu'))
+                    resp = set_remember_device_cookie(resp, username, None)
+                    flash(f'Welcome back, {user["first_name"]}! Device trusted.', 'success')
+                    return resp
+                start_mfa_flow(user, None)
+                session['remember_device_opt_in'] = remember_device_opt_in
+                return redirect(url_for('verify_mfa'))
         else:
             flash('Invalid username or password.', 'danger')
     
-    return render_template('login.html')
+    return render_template('login.html', organizations=organizations)
+
+@app.route('/verify_mfa', methods=['GET', 'POST'])
+def verify_mfa():
+    """Verify email OTP and TOTP before completing login."""
+    if 'pending_mfa_user' not in session:
+        flash('Please log in to continue.', 'warning')
+        return redirect(url_for('login'))
+
+    user = users_col.find_one({'username': session['pending_mfa_user']})
+    if not user:
+        clear_pending_mfa_session()
+        flash('Session expired. Please log in again.', 'warning')
+        return redirect(url_for('login'))
+
+    # Ensure TOTP secret exists (in case user was created before MFA rollout)
+    if not user.get('totp_secret'):
+        secret = pyotp.random_base32()
+        users_col.update_one({'_id': user['_id']}, {'$set': {'totp_secret': secret}})
+        user['totp_secret'] = secret
+
+    totp = pyotp.TOTP(user['totp_secret'])
+    otpauth_uri = totp.provisioning_uri(name=user.get('email', user['username']), issuer_name='CanteenOs')
+    qr_uri = generate_qr_data_uri(otpauth_uri)
+
+    if request.method == 'POST':
+        email_otp = request.form.get('email_otp', '').strip()
+        totp_code = request.form.get('totp_code', '').strip()
+
+        expected_email_otp = session.get('pending_email_otp')
+        expiry_ts = session.get('pending_email_otp_expiry', 0)
+        now_ts = datetime.utcnow().timestamp()
+
+        if not email_otp or not totp_code:
+            flash('Enter both the email code and the TOTP code.', 'danger')
+        elif not expected_email_otp or now_ts > expiry_ts:
+            flash('Email code expired. Please log in again to receive a new code.', 'danger')
+            clear_pending_mfa_session()
+            return redirect(url_for('login'))
+        elif email_otp != expected_email_otp:
+            flash('Incorrect email code.', 'danger')
+        elif not totp.verify(totp_code, valid_window=1):
+            flash('Invalid or expired TOTP code.', 'danger')
+        else:
+            # All good — establish full session
+            pending_org = session.get('pending_org_id') or None
+            complete_login(user, pending_org)
+            clear_pending_mfa_session()
+
+            destination = url_for('core_admin_dashboard') if user.get('role') == 'core_admin' else url_for('menu')
+            resp = redirect(destination)
+
+            if session.pop('remember_device_opt_in', False):
+                resp = set_remember_device_cookie(resp, user['username'], pending_org)
+            flash(f'Welcome back, {user["first_name"]}!', 'success')
+            return resp
+
+    return render_template(
+        'verify_mfa.html',
+        email=user.get('email', ''),
+        otpauth_uri=otpauth_uri,
+        qr_uri=qr_uri,
+        totp_secret=user['totp_secret']
+    )
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
-    """User registration page."""
+    """User registration page with organization support."""
+    organizations = get_all_organizations()
+    
     if request.method == 'POST':
         first_name = request.form['first_name'].strip()
         last_name = request.form['last_name'].strip()
@@ -266,7 +638,8 @@ def register():
         confirm_password = request.form['confirm_password']
         email = request.form['email'].strip().lower()
         phone = request.form['phone'].strip()
-        admin_code = request.form.get('admin_code', '').strip()
+        admin_code = request.form.get('admin_code', '').strip().upper()
+        organization_id_str = request.form.get('organization_id', '')
         
         # Validation
         errors = []
@@ -292,14 +665,49 @@ def register():
         if users_col.find_one({'email': email}):
             errors.append('Email already registered.')
         
+        # Determine role and organization based on admin code
+        role = 'user'
+        organization_id = None
+        org_for_admin = None
+        
+        if admin_code:
+            # Check if it's an organization admin code
+            org_for_admin = organizations_col.find_one({'admin_code': admin_code})
+            if org_for_admin:
+                # Check if this organization already has an admin
+                existing_admin = users_col.find_one({
+                    'role': 'org_admin',
+                    'organization_id': org_for_admin['_id']
+                })
+                if existing_admin:
+                    errors.append('This organization already has an admin. Each organization can only have one admin.')
+                else:
+                    role = 'org_admin'
+                    organization_id = org_for_admin['_id']
+            else:
+                errors.append('Invalid admin code.')
+        else:
+            # Regular user must select an organization
+            if not organization_id_str:
+                if organizations:
+                    errors.append('Please select your organization.')
+            else:
+                try:
+                    organization_id = ObjectId(organization_id_str)
+                    org = organizations_col.find_one({'_id': organization_id, 'is_active': True})
+                    if not org:
+                        errors.append('Invalid organization selected.')
+                except:
+                    errors.append('Invalid organization selected.')
+        
         if errors:
             for error in errors:
                 flash(error, 'danger')
-            return render_template('register.html')
+            return render_template('register.html', organizations=organizations)
         
         # Create user
-        is_admin = admin_code == ADMIN_CODE
         hashed_pw = generate_password_hash(password)
+        is_admin = role == 'org_admin'
         
         try:
             users_col.insert_one({
@@ -309,12 +717,15 @@ def register():
                 'password': hashed_pw,
                 'email': email,
                 'phone': phone,
+                'role': role,
                 'is_admin': is_admin,
+                'organization_id': organization_id,  # Legacy field for backwards compat
+                'organization_ids': [organization_id] if organization_id else [],  # New multi-org field
                 'created_at': datetime.now()
             })
             
-            if is_admin:
-                flash('Admin account created successfully! Please log in.', 'success')
+            if role == 'org_admin':
+                flash(f'Organization Admin account created for {org_for_admin["name"]}! Please log in.', 'success')
             else:
                 flash('Registration successful! Please log in.', 'success')
             return redirect(url_for('login'))
@@ -322,7 +733,7 @@ def register():
             flash('Registration failed. Please try again.', 'danger')
             print(f"Registration error: {e}")
     
-    return render_template('register.html')
+    return render_template('register.html', organizations=organizations)
 
 @app.route('/forgot_password', methods=['GET', 'POST'])
 def forgot_password():
@@ -407,25 +818,54 @@ def reset_password(token):
 def logout():
     """Logout and clear session."""
     session.pop('username', None)
+    session.pop('active_organization_id', None)
+    session.pop('remember_device_opt_in', None)
+    clear_pending_mfa_session()
+    resp = redirect(url_for('login'))
+    resp = clear_remember_device_cookie(resp)
     flash('You have been logged out.', 'info')
-    return redirect(url_for('login'))
+    return resp
 
 # ==================== USER ROUTES ====================
 
 @app.route('/menu')
 @login_required
 def menu():
-    """Display food menu - dynamic from database."""
+    """Display food menu - dynamic from database, scoped by organization."""
     user = get_logged_in_user()
     
-    # Get all available menu items from database
-    menu_items = list(db.menu_items.find({'is_available': True}).sort('created_at', -1))
+    # Build query based on user role
+    query = {'is_available': True}
+    
+    # Core admin sees all menu items, others see only their active org's items
+    active_org_id = get_active_organization_id()
+    if user.get('role') != 'core_admin' and active_org_id:
+        query['organization_id'] = active_org_id
+    
+    menu_items = list(db.menu_items.find(query).sort('created_at', -1))
+    
+    # For Core Admin, create a mapping of organization_id to organization_name
+    org_names = {}
+    if user.get('role') == 'core_admin':
+        # Get all unique org IDs from menu items
+        org_ids = set()
+        for item in menu_items:
+            if item.get('organization_id'):
+                org_ids.add(item['organization_id'])
+        
+        # Fetch organization names
+        for org_id in org_ids:
+            org = organizations_col.find_one({'_id': org_id})
+            if org:
+                org_names[str(org_id)] = org['name']
     
     return render_template(
         'menu_item.html',
         menu_items=menu_items,
         logged_in_user=user['username'],
-        is_admin=user.get('is_admin', False)
+        is_admin=user.get('is_admin', False),
+        user_role=user.get('role', 'user'),
+        org_names=org_names
     )
 
 @app.route('/order', methods=['POST'])
@@ -454,9 +894,13 @@ def order():
             'total_price': total_price,
             'customizations': customizations,
             'status': 'pending',
+            'organization_id': get_active_organization_id(),
             'order_time': datetime.now(),
             'payment_time': None,
-            'completed_time': None
+            'completed_time': None,
+            'scheduled_time': None,
+            'is_scheduled': False,
+            'payment_type': 'upfront'
         })
         
         flash(f'Added {product_name} (x{quantity}) to cart - ₹{total_price}', 'success')
@@ -502,10 +946,23 @@ def checkout():
     
     total_amount = sum(order['total_price'] for order in pending_orders)
     
+    # Get operating hours for the user's active organization
+    operating_hours = None
+    org_id = get_active_organization_id()
+    if org_id:
+        org = organizations_col.find_one({'_id': org_id})
+        if org:
+            operating_hours = org.get('operating_hours', {
+                'start': '08:00',
+                'end': '20:00',
+                'all_day': False
+            })
+    
     return render_template(
         'payment.html',
         orders=pending_orders,
         total_amount=round(total_amount, 2),
+        operating_hours=operating_hours,
         logged_in_user=user['username'],
         is_admin=user.get('is_admin', False)
     )
@@ -513,8 +970,13 @@ def checkout():
 @app.route('/process_payment', methods=['POST'])
 @login_required
 def process_payment():
-    """Process payment - change pending orders to paid."""
+    """Process payment - change pending orders to paid or scheduled."""
     user = get_logged_in_user()
+    
+    # Get scheduling options from form
+    order_type = request.form.get('order_type', 'now')  # 'now' or 'schedule'
+    payment_type = request.form.get('payment_type', 'upfront')  # 'upfront' or 'cod'
+    scheduled_time_str = request.form.get('scheduled_time', '')
     
     # Get pending orders count first
     pending_count = orders_col.count_documents({
@@ -526,14 +988,68 @@ def process_payment():
         flash('No items in cart to pay for.', 'warning')
         return redirect(url_for('menu'))
     
-    # Update all pending orders to paid
+    # Handle scheduled orders
+    scheduled_time = None
+    is_scheduled = False
+    new_status = 'paid'
+    
+    if order_type == 'schedule' and scheduled_time_str:
+        try:
+            scheduled_time = datetime.strptime(scheduled_time_str, '%Y-%m-%dT%H:%M')
+            
+            # Validate scheduled time is in the future
+            if scheduled_time <= datetime.now():
+                flash('Scheduled time must be in the future.', 'danger')
+                return redirect(url_for('checkout'))
+            
+            # Validate against organization operating hours
+            org_id = get_active_organization_id()
+            if org_id:
+                org = organizations_col.find_one({'_id': org_id})
+                if org and org.get('operating_hours'):
+                    hours = org['operating_hours']
+                    if not hours.get('all_day', False):
+                        start_hour = int(hours.get('start', '00:00').split(':')[0])
+                        end_hour = int(hours.get('end', '23:59').split(':')[0])
+                        scheduled_hour = scheduled_time.hour
+                        
+                        if scheduled_hour < start_hour or scheduled_hour >= end_hour:
+                            flash(f'Canteen is open from {hours["start"]} to {hours["end"]}. Please select a valid time.', 'danger')
+                            return redirect(url_for('checkout'))
+            
+            is_scheduled = True
+            # Set status based on payment type
+            if payment_type == 'cod':
+                new_status = 'scheduled_cod'
+            else:
+                new_status = 'scheduled_prepaid'
+        except ValueError:
+            flash('Invalid scheduled time format.', 'danger')
+            return redirect(url_for('checkout'))
+    
+    # Update all pending orders
+    update_data = {
+        'status': new_status,
+        'payment_time': datetime.now() if not is_scheduled or payment_type == 'upfront' else None,
+        'scheduled_time': scheduled_time,
+        'is_scheduled': is_scheduled,
+        'payment_type': payment_type
+    }
+    
     result = orders_col.update_many(
         {'username': user['username'], 'status': 'pending'},
-        {'$set': {'status': 'paid', 'payment_time': datetime.now()}}
+        {'$set': update_data}
     )
     
     if result.modified_count > 0:
-        flash('Payment successful! Your order is being processed.', 'success')
+        if is_scheduled:
+            scheduled_time_str = scheduled_time.strftime('%B %d, %Y at %I:%M %p')
+            if payment_type == 'cod':
+                flash(f'Order scheduled for {scheduled_time_str}. Pay on pickup!', 'success')
+            else:
+                flash(f'Order scheduled for {scheduled_time_str}. Payment received!', 'success')
+        else:
+            flash('Payment successful! Your order is being processed.', 'success')
         return redirect(url_for('payment_confirmation'))
     else:
         flash('Payment failed. Please try again.', 'danger')
@@ -631,15 +1147,101 @@ def profile():
     }))
     total_spent = sum(order['total_price'] for order in paid_orders)
     
+    # Get user's organizations
+    user_org_ids = user.get('organization_ids', [])
+    # Also include legacy single org
+    if user.get('organization_id') and user['organization_id'] not in user_org_ids:
+        user_org_ids.append(user['organization_id'])
+    
+    user_organizations = []
+    for org_id in user_org_ids:
+        org = organizations_col.find_one({'_id': org_id})
+        if org:
+            user_organizations.append(org)
+    
+    # Get organizations user can join (active orgs they're not in)
+    all_orgs = list(organizations_col.find({'is_active': True}))
+    available_organizations = [org for org in all_orgs if org['_id'] not in user_org_ids]
+    
     return render_template(
         'profile.html',
         user=user,
         total_orders=total_orders,
         completed_orders=completed_orders,
         total_spent=round(total_spent, 2),
+        user_organizations=user_organizations,
+        available_organizations=available_organizations,
         logged_in_user=user['username'],
         is_admin=user.get('is_admin', False)
     )
+
+@app.route('/join_organization', methods=['POST'])
+@login_required
+def join_organization():
+    """Allow user to join an additional organization."""
+    user = get_logged_in_user()
+    organization_id_str = request.form.get('organization_id', '')
+    
+    if not organization_id_str:
+        flash('Please select an organization.', 'warning')
+        return redirect(url_for('profile'))
+    
+    try:
+        org_id = ObjectId(organization_id_str)
+        org = organizations_col.find_one({'_id': org_id, 'is_active': True})
+        
+        if not org:
+            flash('Organization not found or inactive.', 'danger')
+            return redirect(url_for('profile'))
+        
+        # Get current organization_ids
+        user_org_ids = user.get('organization_ids', [])
+        if user.get('organization_id') and user['organization_id'] not in user_org_ids:
+            user_org_ids.append(user['organization_id'])
+        
+        # Check if already a member
+        if org_id in user_org_ids:
+            flash(f'You are already a member of {org["name"]}.', 'info')
+            return redirect(url_for('profile'))
+        
+        # Add to organization_ids
+        user_org_ids.append(org_id)
+        users_col.update_one(
+            {'username': user['username']},
+            {'$set': {'organization_ids': user_org_ids}}
+        )
+        
+        flash(f'You have joined {org["name"]}! Logout and login to access it.', 'success')
+    except Exception as e:
+        flash('Failed to join organization.', 'danger')
+        print(f"Join org error: {e}")
+    
+    return redirect(url_for('profile'))
+
+# Available avatar options (Indian food themed)
+AVAILABLE_AVATARS = [
+    'dosa', 'biryani', 'tandoori', 'idly', 'panipuri', 'thali', 
+    'vadai', 'parotta', 'vadapav', 'pavbhaji', 'proteinshake', 'samosa', 'chai'
+]
+
+@app.route('/update_avatar', methods=['POST'])
+@login_required
+def update_avatar():
+    """Update user's avatar selection."""
+    user = get_logged_in_user()
+    avatar = request.form.get('avatar', 'dosa')
+    
+    # Validate avatar choice
+    if avatar not in AVAILABLE_AVATARS:
+        avatar = 'dosa'  # Default fallback
+    
+    users_col.update_one(
+        {'username': user['username']},
+        {'$set': {'avatar': avatar}}
+    )
+    
+    flash('Avatar updated successfully!', 'success')
+    return redirect(url_for('profile'))
 
 @app.route('/edit_profile', methods=['GET', 'POST'])
 @login_required
@@ -774,27 +1376,47 @@ def feedback():
 @app.route('/admin_dashboard')
 @admin_required
 def admin_dashboard():
-    """Admin dashboard with overview statistics."""
+    """Admin dashboard with overview statistics - scoped by organization."""
     user = get_logged_in_user()
     
-    # Statistics
-    total_orders = orders_col.count_documents({'status': {'$ne': 'pending'}})
-    paid_orders = orders_col.count_documents({'status': 'paid'})
-    preparing_orders = orders_col.count_documents({'status': 'preparing'})
-    ready_orders = orders_col.count_documents({'status': 'ready'})
-    completed_orders = orders_col.count_documents({'status': 'completed'})
-    total_users = users_col.count_documents({})
+    # Core admin should go to core admin dashboard
+    if user.get('role') == 'core_admin':
+        return redirect(url_for('core_admin_dashboard'))
     
-    # Calculate revenue
-    revenue_orders = list(orders_col.find({
-        'status': {'$in': ['paid', 'preparing', 'ready', 'completed']}
-    }))
+    # Org admin sees only their organization's data
+    org_id = user.get('organization_id')
+    org_query = {'organization_id': org_id} if org_id else {}
+    
+    # Statistics scoped by organization
+    order_query_base = {'status': {'$ne': 'pending'}}
+    if org_id:
+        order_query_base['organization_id'] = org_id
+    
+    total_orders = orders_col.count_documents(order_query_base)
+    paid_orders = orders_col.count_documents({**org_query, 'status': 'paid'})
+    preparing_orders = orders_col.count_documents({**org_query, 'status': 'preparing'})
+    ready_orders = orders_col.count_documents({**org_query, 'status': 'ready'})
+    completed_orders = orders_col.count_documents({**org_query, 'status': 'completed'})
+    
+    # Users in this organization
+    user_query = {'organization_id': org_id} if org_id else {}
+    total_users = users_col.count_documents(user_query)
+    
+    # Calculate revenue for this organization
+    revenue_query = {'status': {'$in': ['paid', 'preparing', 'ready', 'completed']}}
+    if org_id:
+        revenue_query['organization_id'] = org_id
+    revenue_orders = list(orders_col.find(revenue_query))
     total_revenue = sum(order['total_price'] for order in revenue_orders)
     
-    # Recent orders (last 10)
-    recent_orders = list(orders_col.find({
-        'status': {'$ne': 'pending'}
-    }).sort('order_time', -1).limit(10))
+    # Recent orders (last 10) for this organization
+    recent_query = {'status': {'$ne': 'pending'}}
+    if org_id:
+        recent_query['organization_id'] = org_id
+    recent_orders = list(orders_col.find(recent_query).sort('order_time', -1).limit(10))
+    
+    # Get organization info
+    org = get_user_organization(user)
     
     return render_template(
         'admin_dashboard.html',
@@ -807,7 +1429,8 @@ def admin_dashboard():
         total_revenue=round(total_revenue, 2),
         recent_orders=recent_orders,
         logged_in_user=user['username'],
-        is_admin=True
+        is_admin=True,
+        organization=org
     )
 
 @app.route('/admin_orders')
@@ -838,18 +1461,36 @@ def admin_orders():
 @admin_required
 def update_order_status(order_id, new_status):
     """Update order status."""
-    valid_statuses = ['preparing', 'ready', 'completed']
+    valid_statuses = ['paid', 'preparing', 'ready', 'completed']
     
     if new_status not in valid_statuses:
         flash('Invalid status.', 'danger')
         return redirect(url_for('admin_orders'))
     
     try:
+        order = orders_col.find_one({'_id': ObjectId(order_id)})
+        if not order:
+            flash('Order not found.', 'warning')
+            return redirect(url_for('admin_orders'))
+        
         update_data = {'status': new_status}
+        
+        # Handle scheduled order transitions
+        current_status = order.get('status', '')
+        
+        # If transitioning scheduled order to preparing, mark as paid first
+        if current_status in ['scheduled_prepaid', 'scheduled_cod'] and new_status == 'preparing':
+            # For CoD orders, mark payment_time when preparing (they pay at pickup)
+            if current_status == 'scheduled_cod':
+                update_data['payment_time'] = None  # Will be set when completed
+            update_data['status'] = 'preparing'
         
         # Add completion time if marking as completed
         if new_status == 'completed':
             update_data['completed_time'] = datetime.now()
+            # For CoD orders, set payment time when order is completed
+            if order.get('payment_type') == 'cod' and not order.get('payment_time'):
+                update_data['payment_time'] = datetime.now()
         
         result = orders_col.update_one(
             {'_id': ObjectId(order_id)},
@@ -935,6 +1576,120 @@ def admin_feedback():
         is_admin=True
     )
 
+# ==================== ADMIN SETTINGS ROUTES ====================
+
+@app.route('/admin/settings')
+@admin_required
+def admin_settings():
+    """Admin settings page for operating hours."""
+    user = get_logged_in_user()
+    org_id = user.get('organization_id')
+    
+    if not org_id:
+        flash('No organization found.', 'danger')
+        return redirect(url_for('admin_dashboard'))
+    
+    org = organizations_col.find_one({'_id': org_id})
+    if not org:
+        flash('Organization not found.', 'danger')
+        return redirect(url_for('admin_dashboard'))
+    
+    # Get operating hours with defaults
+    operating_hours = org.get('operating_hours', {
+        'start': '08:00',
+        'end': '20:00',
+        'all_day': False
+    })
+    
+    return render_template(
+        'admin_settings.html',
+        organization=org,
+        operating_hours=operating_hours,
+        logged_in_user=user['username'],
+        is_admin=True
+    )
+
+@app.route('/admin/settings/operating_hours', methods=['POST'])
+@admin_required
+def update_operating_hours():
+    """Update organization operating hours."""
+    user = get_logged_in_user()
+    org_id = user.get('organization_id')
+    
+    if not org_id:
+        flash('No organization found.', 'danger')
+        return redirect(url_for('admin_dashboard'))
+    
+    start_time = request.form.get('start_time', '08:00')
+    end_time = request.form.get('end_time', '20:00')
+    all_day = request.form.get('all_day') == 'on'
+    
+    # Validate time format
+    try:
+        if not all_day:
+            datetime.strptime(start_time, '%H:%M')
+            datetime.strptime(end_time, '%H:%M')
+    except ValueError:
+        flash('Invalid time format.', 'danger')
+        return redirect(url_for('admin_settings'))
+    
+    operating_hours = {
+        'start': start_time,
+        'end': end_time,
+        'all_day': all_day
+    }
+    
+    organizations_col.update_one(
+        {'_id': org_id},
+        {'$set': {'operating_hours': operating_hours}}
+    )
+    
+    if all_day:
+        flash('Operating hours updated: 24/7 availability enabled.', 'success')
+    else:
+        flash(f'Operating hours updated: {start_time} - {end_time}', 'success')
+    
+    return redirect(url_for('admin_settings'))
+
+@app.route('/cancel_scheduled_order/<order_id>', methods=['POST'])
+@login_required
+def cancel_scheduled_order(order_id):
+    """Cancel a scheduled order before it's prepared."""
+    user = get_logged_in_user()
+    
+    try:
+        order = orders_col.find_one({
+            '_id': ObjectId(order_id),
+            'username': user['username'],
+            'status': {'$in': ['scheduled_prepaid', 'scheduled_cod']}
+        })
+        
+        if not order:
+            flash('Order not found or cannot be cancelled.', 'warning')
+            return redirect(url_for('order_history'))
+        
+        # Check if scheduled time hasn't passed and order isn't being prepared
+        if order.get('scheduled_time') and order['scheduled_time'] <= datetime.now():
+            flash('Cannot cancel order after scheduled pickup time.', 'danger')
+            return redirect(url_for('order_history'))
+        
+        # Delete or mark as cancelled
+        orders_col.update_one(
+            {'_id': ObjectId(order_id)},
+            {'$set': {'status': 'cancelled', 'cancelled_time': datetime.now()}}
+        )
+        
+        if order.get('payment_type') == 'upfront':
+            flash('Scheduled order cancelled. Refund will be processed.', 'success')
+        else:
+            flash('Scheduled order cancelled successfully.', 'success')
+            
+    except Exception as e:
+        flash('Failed to cancel order.', 'danger')
+        print(f"Cancel order error: {e}")
+    
+    return redirect(url_for('order_history'))
+
 # ==================== MENU MANAGEMENT ROUTES ====================
 
 @app.route('/admin/add_food_item', methods=['POST'])
@@ -984,13 +1739,18 @@ def add_food_item():
             flash('Please provide an image (upload or URL).', 'danger')
             return redirect(url_for('admin_dashboard'))
         
-        # Check if food item already exists
-        existing = db.menu_items.find_one({'name': food_name})
+        # Check if food item already exists in this organization
+        user = get_logged_in_user()
+        org_id = user.get('organization_id')
+        existing_query = {'name': food_name}
+        if org_id:
+            existing_query['organization_id'] = org_id
+        existing = db.menu_items.find_one(existing_query)
         if existing:
             flash(f'Food item "{food_name}" already exists.', 'warning')
             return redirect(url_for('admin_dashboard'))
         
-        # Insert the new food item
+        # Insert the new food item with organization
         db.menu_items.insert_one({
             'name': food_name,
             'description': description,
@@ -999,6 +1759,7 @@ def add_food_item():
             'image_url': final_image_url,
             'customization_hint': customization_hint,
             'is_available': True,
+            'organization_id': org_id,
             'created_at': datetime.now()
         })
         
@@ -1171,6 +1932,255 @@ def serve_food_image(image_id):
             b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\nIDATx\x9cc\x00\x01\x00\x00\x05\x00\x01\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82',
             mimetype='image/png'
         ), 404
+
+# ==================== CORE ADMIN ROUTES ====================
+
+@app.route('/core_admin_dashboard')
+@core_admin_required
+def core_admin_dashboard():
+    """Core Admin dashboard - global overview of all organizations."""
+    user = get_logged_in_user()
+    
+    # Global statistics
+    total_orgs = organizations_col.count_documents({})
+    active_orgs = organizations_col.count_documents({'is_active': True})
+    total_users = users_col.count_documents({'role': {'$ne': 'core_admin'}})
+    total_orders = orders_col.count_documents({'status': {'$ne': 'pending'}})
+    
+    # Calculate total revenue
+    all_paid_orders = list(orders_col.find({
+        'status': {'$in': ['paid', 'preparing', 'ready', 'completed']}
+    }))
+    total_revenue = sum(order.get('total_price', 0) for order in all_paid_orders)
+    
+    # Get all organizations with their stats
+    organizations = []
+    for org in organizations_col.find().sort('created_at', -1):
+        org_id = org['_id']
+        org_users = users_col.count_documents({'organization_id': org_id})
+        org_orders = orders_col.count_documents({'organization_id': org_id, 'status': {'$ne': 'pending'}})
+        org_revenue_orders = list(orders_col.find({
+            'organization_id': org_id,
+            'status': {'$in': ['paid', 'preparing', 'ready', 'completed']}
+        }))
+        org_revenue = sum(o.get('total_price', 0) for o in org_revenue_orders)
+        
+        organizations.append({
+            '_id': org_id,
+            'name': org['name'],
+            'admin_code': org['admin_code'],
+            'description': org.get('description', ''),
+            'is_active': org.get('is_active', True),
+            'created_at': org.get('created_at'),
+            'user_count': org_users,
+            'order_count': org_orders,
+            'revenue': round(org_revenue, 2)
+        })
+    
+    return render_template(
+        'core_admin_dashboard.html',
+        total_organizations=total_orgs,
+        active_orgs=active_orgs,
+        total_users=total_users,
+        total_orders=total_orders,
+        total_revenue=round(total_revenue, 2),
+        organizations=organizations,
+        logged_in_user=user['username'],
+        is_admin=True
+    )
+
+@app.route('/core_admin/organizations', methods=['GET', 'POST'])
+@core_admin_required
+def core_admin_organizations():
+    """Manage all organizations - create, view, toggle, delete."""
+    user = get_logged_in_user()
+    
+    if request.method == 'POST':
+        # Create new organization
+        org_name = request.form.get('org_name', '').strip()
+        org_description = request.form.get('org_description', '').strip()
+        
+        if not org_name:
+            flash('Organization name is required.', 'danger')
+        elif organizations_col.find_one({'name': {'$regex': f'^{org_name}$', '$options': 'i'}}):
+            flash('Organization with this name already exists.', 'danger')
+        else:
+            # Generate unique admin code
+            admin_code = generate_org_admin_code()
+            
+            organizations_col.insert_one({
+                'name': org_name,
+                'description': org_description or f'{org_name} Canteen',
+                'admin_code': admin_code,
+                'is_active': True,
+                'created_at': datetime.now()
+            })
+            
+            flash(f'Organization "{org_name}" created! Admin Code: {admin_code}', 'success')
+        
+        return redirect(url_for('core_admin_organizations'))
+    
+    # Get all organizations
+    organizations = list(organizations_col.find().sort('created_at', -1))
+    for org in organizations:
+        org['user_count'] = users_col.count_documents({'organization_id': org['_id']})
+        org['admin_count'] = users_col.count_documents({'organization_id': org['_id'], 'role': 'org_admin'})
+    
+    return render_template(
+        'core_admin_organizations.html',
+        organizations=organizations,
+        logged_in_user=user['username'],
+        is_admin=True
+    )
+
+@app.route('/core_admin/toggle_org/<org_id>', methods=['POST'])
+@core_admin_required
+def toggle_organization(org_id):
+    """Toggle organization active/inactive status."""
+    try:
+        org = organizations_col.find_one({'_id': ObjectId(org_id)})
+        if org:
+            new_status = not org.get('is_active', True)
+            organizations_col.update_one(
+                {'_id': ObjectId(org_id)},
+                {'$set': {'is_active': new_status}}
+            )
+            status_text = 'activated' if new_status else 'deactivated'
+            flash(f'Organization "{org["name"]}" has been {status_text}.', 'success')
+        else:
+            flash('Organization not found.', 'danger')
+    except Exception as e:
+        flash('Failed to update organization.', 'danger')
+        print(f"Toggle org error: {e}")
+    
+    return redirect(url_for('core_admin_organizations'))
+
+@app.route('/core_admin/delete_org/<org_id>', methods=['POST'])
+@core_admin_required
+def delete_organization(org_id):
+    """Delete an organization and all its data."""
+    try:
+        org = organizations_col.find_one({'_id': ObjectId(org_id)})
+        if org:
+            org_oid = ObjectId(org_id)
+            
+            # Delete all users in this organization
+            users_col.delete_many({'organization_id': org_oid})
+            
+            # Delete all orders from this organization
+            orders_col.delete_many({'organization_id': org_oid})
+            
+            # Delete all menu items from this organization
+            db.menu_items.delete_many({'organization_id': org_oid})
+            
+            # Delete the organization
+            organizations_col.delete_one({'_id': org_oid})
+            
+            flash(f'Organization "{org["name"]}" and all its data have been deleted.', 'success')
+        else:
+            flash('Organization not found.', 'danger')
+    except Exception as e:
+        flash('Failed to delete organization.', 'danger')
+        print(f"Delete org error: {e}")
+    
+    return redirect(url_for('core_admin_organizations'))
+
+@app.route('/core_admin/regenerate_code/<org_id>', methods=['POST'])
+@core_admin_required
+def regenerate_org_code(org_id):
+    """Regenerate admin code for an organization."""
+    try:
+        org = organizations_col.find_one({'_id': ObjectId(org_id)})
+        if org:
+            new_code = generate_org_admin_code()
+            organizations_col.update_one(
+                {'_id': ObjectId(org_id)},
+                {'$set': {'admin_code': new_code}}
+            )
+            flash(f'New admin code for "{org["name"]}": {new_code}', 'success')
+        else:
+            flash('Organization not found.', 'warning')
+    except Exception as e:
+        flash('Failed to regenerate code.', 'danger')
+        print(f"Regenerate code error: {e}")
+    
+    return redirect(url_for('core_admin_organizations'))
+
+@app.route('/core_admin/delete_user/<username>', methods=['POST'])
+@core_admin_required
+def core_admin_delete_user(username):
+    """Delete any user (Core Admin only)."""
+    current_user = get_logged_in_user()
+    
+    if username == current_user['username']:
+        flash('You cannot delete your own account.', 'danger')
+        return redirect(url_for('core_admin_all_users'))
+    
+    try:
+        user_to_delete = users_col.find_one({'username': username})
+        if user_to_delete and user_to_delete.get('role') == 'core_admin':
+            flash('Cannot delete Core Admin accounts.', 'danger')
+            return redirect(url_for('core_admin_all_users'))
+        
+        user_result = users_col.delete_one({'username': username})
+        
+        if user_result.deleted_count:
+            orders_col.delete_many({'username': username})
+            feedback_col.delete_many({'username': username})
+            flash(f'User "{username}" and all associated data deleted.', 'success')
+        else:
+            flash('User not found.', 'warning')
+    except Exception as e:
+        flash('Failed to delete user.', 'danger')
+        print(f"Delete user error: {e}")
+    
+    return redirect(url_for('core_admin_all_users'))
+
+@app.route('/core_admin/all_users')
+@core_admin_required
+def core_admin_all_users():
+    """View all users across all organizations."""
+    user = get_logged_in_user()
+    
+    # Get filter parameters
+    org_filter = request.args.get('org', '')
+    role_filter = request.args.get('role', '')
+    
+    # Build query
+    query = {'role': {'$ne': 'core_admin'}}  # Exclude core admin from list
+    
+    if org_filter:
+        try:
+            query['organization_id'] = ObjectId(org_filter)
+        except:
+            pass
+    
+    if role_filter:
+        query['role'] = role_filter
+    
+    # Get users
+    all_users = list(users_col.find(query).sort('created_at', -1))
+    
+    # Attach organization names
+    for u in all_users:
+        if u.get('organization_id'):
+            org = organizations_col.find_one({'_id': u['organization_id']})
+            u['org_name'] = org['name'] if org else 'Unknown'
+        else:
+            u['org_name'] = 'No Organization'
+    
+    # Get all organizations for filter dropdown
+    organizations = list(organizations_col.find().sort('name', 1))
+    
+    return render_template(
+        'core_admin_users.html',
+        users=all_users,
+        organizations=organizations,
+        selected_org=org_filter,
+        selected_role=role_filter,
+        logged_in_user=user['username'],
+        is_admin=True
+    )
 
 # ==================== MAIN ====================
 

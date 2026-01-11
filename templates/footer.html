@@ -1,0 +1,54 @@
+<!-- Site Footer -->
+<footer class="site-footer">
+    <div class="container text-center">
+        <div class="footer-links">
+            <a href="{{ url_for('menu') }}"><svg style="width:16px;height:16px;margin-right:4px;vertical-align:middle;">
+                    <use href="#icon-menu-book" />
+                </svg>Menu</a>
+            <a href="{{ url_for('about') }}"><svg
+                    style="width:16px;height:16px;margin-right:4px;vertical-align:middle;">
+                    <use href="#icon-info" />
+                </svg>About Us</a>
+            <a href="{{ url_for('feedback') }}"><svg
+                    style="width:16px;height:16px;margin-right:4px;vertical-align:middle;">
+                    <use href="#icon-star" />
+                </svg>Feedback</a>
+        </div>
+        <p class="footer-copyright">
+            © 2026 CanteenOs. Made with ❤️ for better campus dining.
+        </p>
+    </div>
+</footer>
+
+<style>
+    .site-footer {
+        background: #1a202c;
+        color: white;
+        padding: 2rem 0;
+        margin-top: 3rem;
+    }
+
+    .footer-links {
+        display: flex;
+        justify-content: center;
+        gap: 2rem;
+        flex-wrap: wrap;
+        margin-bottom: 1rem;
+    }
+
+    .footer-links a {
+        color: rgba(255, 255, 255, 0.8);
+        text-decoration: none;
+        transition: color 0.3s ease;
+    }
+
+    .footer-links a:hover {
+        color: var(--primary-color);
+    }
+
+    .footer-copyright {
+        margin: 0;
+        opacity: 0.7;
+        font-size: 0.9rem;
+    }
+</style>
