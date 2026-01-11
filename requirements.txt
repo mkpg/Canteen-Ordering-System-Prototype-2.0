@@ -8,3 +8,7 @@ gunicorn==21.2.0
 dnspython==2.4.2
 certifi==2023.11.17
 pymongo[srv]==4.6.0
+flask-compress==1.14
+pyotp==2.9.0
+qrcode==7.4.2
+pillow==10.2.0

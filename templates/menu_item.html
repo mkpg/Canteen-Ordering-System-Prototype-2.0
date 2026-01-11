@@ -82,9 +82,9 @@
         {% if menu_items and menu_items|length > 0 %}
         <div class="row" id="menuGrid">
             {% for item in menu_items %}
-            <div class="col-lg-4 col-md-6 menu-item-col" data-name="{{ item.name|lower }}"
+            <div class="col-lg-4 col-md-6 col-12 menu-item-col" data-name="{{ item.name|lower }}"
                 data-category="{{ item.category|lower }}">
-                <div class="food-card">
+                <div class="food-card" onclick="toggleMobileExpand(this, event)">
                     <div class="food-image-wrapper">
                         <img src="{{ item.image_url }}" alt="{{ item.name }}" class="food-image" loading="lazy"
                             onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&h=300&fit=crop';">
@@ -95,13 +95,38 @@
                     </div>
                     <div class="food-content">
                         <div class="food-header">
-                            <h5 class="food-name">{{ item.name }}</h5>
-                            <span class="food-category">{{ item.category|capitalize }}</span>
+                            <div class="food-header-main">
+                                <h5 class="food-name">{{ item.name }}</h5>
+                                <span class="food-category">{{ item.category|capitalize }}</span>
+                            </div>
+                            <div class="food-price-mobile">₹{{ item.price }}</div>
+                            {% if user_role == 'core_admin' and item.organization_id %}
+                            <span class="food-org-badge"
+                                style="display: block; font-size: 0.75rem; color: #667eea; font-weight: 600; margin-top: 4px;">
+                                <svg style="width: 12px; height: 12px; margin-right: 2px; vertical-align: middle;"
+                                    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                                    stroke="currentColor" stroke-width="2">
+                                    <rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect>
+                                    <path d="M9 22v-4h6v4"></path>
+                                </svg>
+                                {{ org_names.get(item.organization_id|string, 'Unknown Org') }}
+                            </span>
+                            {% endif %}
                         </div>
                         <p class="food-description">{{ item.description }}</p>
-                        <div class="food-price">₹{{ item.price }}</div>
+                        <div class="food-price food-price-desktop">₹{{ item.price }}</div>
 
-                        <form method="POST" action="{{ url_for('order') }}" class="order-form">
+                        <!-- Mobile: Tap to expand hint -->
+                        <div class="mobile-tap-hint">
+                            <svg style="width: 16px; height: 16px;">
+                                <use href="#icon-plus" />
+                            </svg>
+                            Tap to order
+                        </div>
+
+                        <!-- Order form - hidden on mobile until expanded -->
+                        <form method="POST" action="{{ url_for('order') }}" class="order-form"
+                            onclick="event.stopPropagation()">
                             <div class="quantity-control">
                                 <label class="qty-label"><span class="text-icon"><svg>
                                             <use href="#icon-package" />
@@ -185,11 +210,13 @@
                         <use href="#icon-utensils" />
                     </svg> CanteenOs</div>
                 <div class="footer-links">
+                    <a href="{{ url_for('about') }}">About Us</a>
+                    <span>•</span>
                     <a href="{{ url_for('feedback') }}">Feedback</a>
                     <span>•</span>
                     <a href="{{ url_for('order_history') }}">Orders</a>
                 </div>
-                <div class="footer-copy">© 2025 CanteenOs. Made with <svg>
+                <div class="footer-copy">© 2026 CanteenOs. Made with <svg>
                         <use href="#icon-heart-filled" />
                     </svg></div>
             </div>
@@ -253,6 +280,27 @@
             });
 
             document.getElementById('noResults').style.display = visibleCount === 0 ? 'block' : 'none';
+        }
+
+        // Toggle expand/collapse for food cards (all devices)
+        function toggleMobileExpand(card, event) {
+            // Don't toggle if clicking on form elements
+            if (event.target.closest('form')) return;
+
+            // Close all other expanded cards
+            document.querySelectorAll('.food-card.mobile-expanded').forEach(c => {
+                if (c !== card) c.classList.remove('mobile-expanded');
+            });
+
+            // Toggle current card
+            card.classList.toggle('mobile-expanded');
+
+            // Scroll into view if expanded
+            if (card.classList.contains('mobile-expanded')) {
+                setTimeout(() => {
+                    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 100);
+            }
         }
     </script>
 </body>

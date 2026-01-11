@@ -77,6 +77,23 @@ body {
     overflow-x: hidden;
 }
 
+/* Container sizing - More compact layout */
+.container {
+    max-width: 1140px !important;
+}
+
+@media (min-width: 1200px) {
+    .container {
+        max-width: 1080px !important;
+    }
+}
+
+@media (min-width: 1400px) {
+    .container {
+        max-width: 1200px !important;
+    }
+}
+
 /* Animated Background Orbs */
 body::before {
     content: '';
@@ -302,21 +319,81 @@ body::before {
     border: 2px solid var(--accent-color);
     color: var(--accent-color);
     background: transparent;
+    position: relative;
+    overflow: hidden;
+    z-index: 1;
+}
+
+.btn-outline-primary::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, var(--accent-color), var(--accent-hover));
+    transition: left 0.4s ease;
+    z-index: -1;
+}
+
+.btn-outline-primary:hover::before {
+    left: 0;
 }
 
 .btn-outline-primary:hover {
-    background: var(--accent-color);
     color: white;
+    transform: translateY(-3px) scale(1.02);
+    box-shadow: 0 8px 25px rgba(255, 107, 53, 0.4);
+    border-color: var(--accent-color);
 }
 
 .btn-outline-light {
     border: 2px solid var(--text-light);
     color: var(--text-light);
+    position: relative;
+    overflow: hidden;
+    z-index: 1;
+}
+
+.btn-outline-light::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: var(--text-light);
+    transition: left 0.4s ease;
+    z-index: -1;
+}
+
+.btn-outline-light:hover::before {
+    left: 0;
 }
 
 .btn-outline-light:hover {
-    background: var(--text-light);
+    background: transparent;
     color: var(--text-primary);
+    transform: translateY(-3px) scale(1.02);
+    box-shadow: 0 8px 25px rgba(255, 255, 255, 0.3);
+}
+
+/* Arrow animation on hover for buttons with arrows */
+.btn:hover svg,
+.btn:hover .icon {
+    animation: iconBounce 0.4s ease;
+}
+
+@keyframes iconBounce {
+
+    0%,
+    100% {
+        transform: translateX(0);
+    }
+
+    50% {
+        transform: translateX(4px);
+    }
 }
 
 /* Status Badges - Pill Style */
@@ -789,13 +866,20 @@ body::before {
 .stat-card {
     background: var(--card-bg);
     border-radius: 20px;
-    padding: 2rem;
+    padding: 1.5rem 1rem;
     text-align: center;
     box-shadow: var(--shadow);
     transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     border: 1px solid var(--glass-border);
     position: relative;
     overflow: hidden;
+    /* Prevent food-card styles from applying */
+    cursor: default !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    align-items: center !important;
+    min-height: 120px;
 }
 
 .stat-card::after {
@@ -834,22 +918,30 @@ body::before {
 }
 
 .stat-card .stat-value {
-    font-family: var(--font-heading);
-    font-size: 2.5rem;
+    font-family: var(--font-accent);
+    font-size: 2rem;
     font-weight: 700;
-    background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    color: var(--primary-color);
+    line-height: 1.2;
+    word-break: break-word;
+    z-index: 1;
 }
 
 .stat-card .stat-label {
     font-family: var(--font-accent);
     color: var(--text-secondary);
-    font-size: 0.95rem;
-    font-weight: 500;
+    font-size: 0.8rem;
+    font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 1px;
+    margin-top: 0.5rem;
+    z-index: 1;
+}
+
+/* Ensure stat-cards don't have hidden order forms */
+.stat-card .order-form,
+.stat-card .mobile-tap-hint {
+    display: none !important;
 }
 
 /* Order Timeline */
@@ -930,10 +1022,17 @@ body::before {
     font-family: var(--font-primary);
     border-radius: 12px;
     border: 2px solid rgba(0, 0, 0, 0.08);
-    padding: 0.875rem 1rem;
+    padding: 1rem 2.5rem 1rem 1rem;
     transition: all 0.3s ease;
     background: var(--card-bg);
     font-size: 1rem;
+    line-height: 1.5;
+    min-height: 52px;
+}
+
+.form-select option {
+    padding: 0.75rem 1rem;
+    line-height: 1.5;
 }
 
 .form-control:focus,
@@ -1054,8 +1153,48 @@ body::before {
 
 .page-header p {
     font-family: var(--font-accent);
-    color: rgba(255, 255, 255, 0.8);
+    color: var(--accent-color);
     font-size: 1.1rem;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+.page-header p.text-muted,
+.page-header .text-muted {
+    color: var(--accent-color) !important;
+}
+
+/* Better contrast for outline buttons on gradient backgrounds */
+.btn-outline-secondary {
+    color: var(--accent-color);
+    border-color: var(--accent-color);
+    background: transparent;
+    font-weight: 600;
+    position: relative;
+    overflow: hidden;
+    z-index: 1;
+}
+
+.btn-outline-secondary::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, var(--accent-color), var(--accent-hover));
+    transition: left 0.4s ease;
+    z-index: -1;
+}
+
+.btn-outline-secondary:hover::before {
+    left: 0;
+}
+
+.btn-outline-secondary:hover {
+    color: #fff;
+    border-color: var(--accent-color);
+    transform: translateY(-3px) scale(1.02);
+    box-shadow: 0 8px 25px rgba(255, 107, 53, 0.4);
 }
 
 /* Empty State */
@@ -1162,6 +1301,22 @@ body::before {
 
     .stat-card {
         margin-bottom: 1.5rem;
+        padding: 1rem 0.5rem;
+        display: flex !important;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        min-height: 100px;
+    }
+
+    .stat-card .stat-value {
+        font-size: 1.5rem !important;
+        word-break: break-word;
+    }
+
+    .stat-card .stat-label {
+        font-size: 0.7rem !important;
+        margin-top: 0.25rem;
     }
 
     .profile-card {
@@ -2612,4 +2767,313 @@ body::before {
 
 .icon-bounce svg {
     animation: bounce 2s ease infinite;
+}
+
+/* ==================== MOBILE ZOMATO-STYLE FOOD CARDS ==================== */
+
+/* Mobile padding improvements */
+@media (max-width: 767px) {
+    .container {
+        padding-left: 12px;
+        padding-right: 12px;
+    }
+
+    .menu-item-col {
+        padding: 6px !important;
+    }
+
+    /* Food card mobile styles */
+    .food-card {
+        margin-bottom: 12px;
+        border-radius: 16px;
+        overflow: hidden;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .food-card:active {
+        transform: scale(0.98);
+    }
+
+    /* Horizontal layout for mobile cards */
+    .food-card .food-image-wrapper {
+        height: 120px;
+    }
+
+    .food-card .food-image {
+        height: 120px;
+        object-fit: cover;
+    }
+
+    .food-card .food-content {
+        padding: 12px 14px;
+    }
+
+    /* Food header - row layout with price on right */
+    .food-card .food-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+
+    .food-card .food-header-main {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .food-card .food-name {
+        font-size: 1rem;
+        margin-bottom: 2px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .food-card .food-category {
+        font-size: 0.7rem;
+        padding: 2px 8px;
+    }
+
+    .food-card .food-price-mobile {
+        display: block !important;
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: var(--accent-color);
+    }
+
+    .food-card .food-price-desktop {
+        display: none !important;
+    }
+
+    .food-card .food-description {
+        font-size: 0.8rem;
+        margin: 6px 0;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    /* Hide order form by default on mobile */
+    .food-card .order-form {
+        display: none;
+        opacity: 0;
+        max-height: 0;
+        overflow: hidden;
+        transition: all 0.35s ease;
+    }
+
+    /* Tap hint visible by default */
+    .food-card .mobile-tap-hint {
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 10px;
+        margin-top: 8px;
+        background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+        color: white;
+        border-radius: 10px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+
+    .food-card .mobile-tap-hint svg {
+        width: 14px;
+        height: 14px;
+        stroke: white;
+        transition: transform 0.3s ease;
+    }
+
+    /* Expanded state */
+    .food-card.mobile-expanded {
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        transform: scale(1.02);
+        z-index: 10;
+        position: relative;
+    }
+
+    .food-card.mobile-expanded .food-image-wrapper {
+        height: 180px;
+    }
+
+    .food-card.mobile-expanded .food-image {
+        height: 180px;
+    }
+
+    .food-card.mobile-expanded .food-description {
+        -webkit-line-clamp: unset;
+        display: block;
+    }
+
+    .food-card.mobile-expanded .order-form {
+        display: block;
+        opacity: 1;
+        max-height: 500px;
+        margin-top: 12px;
+        padding-top: 12px;
+        border-top: 1px solid rgba(0, 0, 0, 0.08);
+        animation: slideDown 0.35s ease;
+    }
+
+    .food-card.mobile-expanded .mobile-tap-hint {
+        background: linear-gradient(135deg, #ef4444, #dc2626);
+    }
+
+    .food-card.mobile-expanded .mobile-tap-hint::before {
+        content: 'Tap to close';
+    }
+
+    .food-card.mobile-expanded .mobile-tap-hint svg {
+        transform: rotate(45deg);
+    }
+
+    /* Remove original text in expanded state */
+    .food-card.mobile-expanded .mobile-tap-hint {
+        font-size: 0;
+    }
+
+    .food-card.mobile-expanded .mobile-tap-hint::before {
+        font-size: 0.85rem;
+    }
+
+    @keyframes slideDown {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* Order form mobile styles */
+    .food-card .quantity-control {
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+
+    .food-card .qty-label {
+        margin-bottom: 0;
+    }
+
+    .food-card .custom-field {
+        margin-bottom: 12px;
+    }
+
+    .food-card .custom-input {
+        padding: 10px 12px;
+        font-size: 0.9rem;
+    }
+
+    .food-card .btn-add-cart {
+        width: 100%;
+        padding: 12px;
+        font-size: 0.95rem;
+    }
+
+    /* Cart float button mobile */
+    .cart-float {
+        bottom: 15px;
+        right: 15px;
+    }
+
+    .btn-cart-main {
+        padding: 12px 20px;
+        font-size: 0.9rem;
+    }
+}
+
+/* Desktop: Adjustments for larger screens */
+@media (min-width: 768px) {
+    .food-price-mobile {
+        display: none !important;
+    }
+
+    .food-price-desktop {
+        display: block !important;
+    }
+
+    /* Show tap hint on desktop too */
+    .mobile-tap-hint {
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 12px 20px;
+        margin-top: 12px;
+        background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+        color: white;
+        border-radius: 12px;
+        font-size: 0.95rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+
+    .mobile-tap-hint svg {
+        width: 18px;
+        height: 18px;
+        stroke: white;
+        transition: transform 0.3s ease;
+    }
+
+    /* Hide order form by default on desktop */
+    .food-card .order-form {
+        display: none;
+        opacity: 0;
+        max-height: 0;
+        overflow: hidden;
+        transition: all 0.35s ease;
+    }
+
+    /* Desktop expanded state */
+    .food-card.mobile-expanded {
+        box-shadow: 0 15px 50px rgba(0, 0, 0, 0.2);
+        transform: scale(1.03);
+        z-index: 10;
+        position: relative;
+    }
+
+    .food-card.mobile-expanded .order-form {
+        display: block;
+        opacity: 1;
+        max-height: 500px;
+        margin-top: 15px;
+        padding-top: 15px;
+        border-top: 1px solid rgba(0, 0, 0, 0.08);
+        animation: slideDownDesktop 0.35s ease;
+    }
+
+    .food-card.mobile-expanded .mobile-tap-hint {
+        background: linear-gradient(135deg, #ef4444, #dc2626);
+        font-size: 0;
+    }
+
+    .food-card.mobile-expanded .mobile-tap-hint::before {
+        content: 'Click to close';
+        font-size: 0.95rem;
+    }
+
+    .food-card.mobile-expanded .mobile-tap-hint svg {
+        transform: rotate(45deg);
+    }
+
+    @keyframes slideDownDesktop {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
 }

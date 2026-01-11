@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Core Admin Dashboard - CanteenOs</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+
+<body>
+    {% include 'navbar.html' %}
+    <div class="container my-5">
+        <div class="page-header">
+            <h1><span class="text-icon"><svg>
+                        <use href="#icon-shield" />
+                    </svg></span> Core Admin Dashboard</h1>
+            <p class="text-muted">Manage all organizations and platform-wide operations</p>
+        </div>
+
+        <!-- Global Statistics Cards -->
+        <div class="row mb-4">
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="stat-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                    <div class="stat-icon" style="color: rgba(255,255,255,0.85);">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect>
+                            <path d="M9 22v-4h6v4"></path>
+                            <path d="M8 6h.01"></path>
+                            <path d="M16 6h.01"></path>
+                            <path d="M12 6h.01"></path>
+                            <path d="M12 10h.01"></path>
+                            <path d="M12 14h.01"></path>
+                            <path d="M16 10h.01"></path>
+                            <path d="M16 14h.01"></path>
+                            <path d="M8 10h.01"></path>
+                            <path d="M8 14h.01"></path>
+                        </svg>
+                    </div>
+                    <div class="stat-value" style="color: #fff; font-weight: 900;">{{ total_organizations }}</div>
+                    <div class="stat-label"
+                        style="color: #fff; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;">
+                        Organizations
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="stat-card">
+                    <div class="stat-icon"><svg>
+                            <use href="#icon-users" />
+                        </svg></div>
+                    <div class="stat-value">{{ total_users }}</div>
+                    <div class="stat-label">Total Users</div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="stat-card">
+                    <div class="stat-icon"><svg>
+                            <use href="#icon-package" />
+                        </svg></div>
+                    <div class="stat-value">{{ total_orders }}</div>
+                    <div class="stat-label">Total Orders</div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="stat-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                    <div class="stat-icon" style="color: rgba(255,255,255,0.85);"><svg>
+                            <use href="#icon-dollar" />
+                        </svg></div>
+                    <div class="stat-value" style="color: #fff; font-weight: 900;">₹{{ total_revenue }}</div>
+                    <div class="stat-label"
+                        style="color: #fff; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;">
+                        Total Revenue
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="row mb-4">
+            <div class="col-md-4 col-6 mb-2">
+                <a href="{{ url_for('core_admin_organizations') }}" class="btn btn-primary btn-block py-3">
+                    <svg style="width: 1.1rem; height: 1.1rem; margin-right: 0.35rem;">
+                        <use href="#icon-building" />
+                    </svg> Manage Organizations
+                </a>
+            </div>
+            <div class="col-md-4 col-6 mb-2">
+                <a href="{{ url_for('core_admin_all_users') }}" class="btn btn-outline-primary btn-block py-3">
+                    <svg style="width: 1.1rem; height: 1.1rem; margin-right: 0.35rem;">
+                        <use href="#icon-users" />
+                    </svg> All Users
+                </a>
+            </div>
+            <div class="col-md-4 col-12 mb-2">
+                <a href="{{ url_for('menu') }}" class="btn btn-outline-primary btn-block py-3">
+                    <svg style="width: 1.1rem; height: 1.1rem; margin-right: 0.35rem;">
+                        <use href="#icon-clipboard" />
+                    </svg> View Menu
+                </a>
+            </div>
+        </div>
+
+        <!-- Organizations Overview -->
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><svg style="width: 1.25rem; height: 1.25rem; margin-right: 0.5rem;">
+                        <use href="#icon-building" />
+                    </svg> Organizations Overview</h5>
+                <a href="{{ url_for('core_admin_organizations') }}" class="btn btn-sm btn-primary">Manage All</a>
+            </div>
+            <div class="card-body p-0">
+                {% if organizations %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Organization</th>
+                                <th>Admin Code</th>
+                                <th>Users</th>
+                                <th>Orders</th>
+                                <th>Revenue</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for org in organizations %}
+                            <tr>
+                                <td><strong>{{ org.name }}</strong></td>
+                                <td><code>{{ org.admin_code }}</code></td>
+                                <td>{{ org.user_count }}</td>
+                                <td>{{ org.order_count }}</td>
+                                <td>₹{{ org.revenue }}</td>
+                                <td>
+                                    {% if org.is_active %}
+                                    <span class="badge badge-success">Active</span>
+                                    {% else %}
+                                    <span class="badge badge-secondary">Inactive</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-5 text-muted">
+                    <svg style="width: 3rem; height: 3rem; margin-bottom: 1rem; opacity: 0.5;">
+                        <use href="#icon-building" />
+                    </svg>
+                    <p>No organizations yet</p>
+                    <a href="{{ url_for('core_admin_organizations') }}" class="btn btn-primary">Create First
+                        Organization</a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</body>
+
+</html>

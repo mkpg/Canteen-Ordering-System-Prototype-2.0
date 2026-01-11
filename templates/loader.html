@@ -1,0 +1,624 @@
+<!-- Chai Loading Animation - Fluid Two Cup Pour -->
+<div id="chaiLoader" class="chai-loader-overlay">
+    <div class="chai-loader">
+        <div class="cups-container">
+            <!-- Left Glass Cup -->
+            <div class="glass-cup left-cup">
+                <div class="glass-body">
+                    <div class="tea-liquid left-tea">
+                        <div class="tea-wave"></div>
+                        <div class="tea-wave wave2"></div>
+                    </div>
+                    <div class="glass-shine"></div>
+                    <div class="glass-highlight"></div>
+                </div>
+                <div class="steam left-steam">
+                    <span></span><span></span><span></span>
+                </div>
+            </div>
+
+            <!-- Tea Stream with SVG curve -->
+            <svg class="tea-stream-svg" viewBox="0 0 100 80" preserveAspectRatio="none">
+                <defs>
+                    <linearGradient id="teaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" style="stop-color:#D2691E;stop-opacity:1" />
+                        <stop offset="50%" style="stop-color:#CD853F;stop-opacity:1" />
+                        <stop offset="100%" style="stop-color:#8B4513;stop-opacity:1" />
+                    </linearGradient>
+                </defs>
+                <path class="tea-stream-path left-stream" d="M 15 15 Q 50 -10 85 50" fill="none"
+                    stroke="url(#teaGradient)" stroke-width="6" stroke-linecap="round" />
+                <path class="tea-stream-path right-stream" d="M 85 15 Q 50 -10 15 50" fill="none"
+                    stroke="url(#teaGradient)" stroke-width="6" stroke-linecap="round" />
+            </svg>
+
+            <!-- Droplets -->
+            <div class="droplets">
+                <span class="drop drop1"></span>
+                <span class="drop drop2"></span>
+                <span class="drop drop3"></span>
+            </div>
+
+            <!-- Right Glass Cup -->
+            <div class="glass-cup right-cup">
+                <div class="glass-body">
+                    <div class="tea-liquid right-tea">
+                        <div class="tea-wave"></div>
+                        <div class="tea-wave wave2"></div>
+                    </div>
+                    <div class="glass-shine"></div>
+                    <div class="glass-highlight"></div>
+                </div>
+                <div class="steam right-steam">
+                    <span></span><span></span><span></span>
+                </div>
+            </div>
+        </div>
+        <p class="loader-text">Brewing<span class="dots"></span></p>
+    </div>
+</div>
+
+<style>
+    .chai-loader-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(135deg, #1a472a 0%, #2d5a3d 50%, #1a472a 100%);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+        opacity: 1;
+        transition: opacity 0.4s ease-out, visibility 0.4s ease-out;
+    }
+
+    .chai-loader-overlay.hidden {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+    }
+
+    .chai-loader {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1.5rem;
+    }
+
+    .cups-container {
+        display: flex;
+        align-items: flex-end;
+        gap: 40px;
+        height: 140px;
+        position: relative;
+    }
+
+    /* Glass Cup */
+    .glass-cup {
+        position: relative;
+        z-index: 2;
+    }
+
+    .left-cup {
+        animation: tilt-left 4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+        transform-origin: bottom center;
+    }
+
+    .right-cup {
+        animation: tilt-right 4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+        transform-origin: bottom center;
+    }
+
+    .glass-body {
+        width: 45px;
+        height: 70px;
+        background: linear-gradient(90deg,
+                rgba(255, 255, 255, 0.15) 0%,
+                rgba(255, 255, 255, 0.35) 15%,
+                rgba(255, 255, 255, 0.15) 30%,
+                rgba(255, 255, 255, 0.08) 100%);
+        border: 2px solid rgba(255, 255, 255, 0.5);
+        border-radius: 4px 4px 12px 12px;
+        position: relative;
+        overflow: hidden;
+        box-shadow:
+            inset 0 0 15px rgba(255, 255, 255, 0.15),
+            0 8px 20px rgba(0, 0, 0, 0.4),
+            0 0 30px rgba(210, 105, 30, 0.2);
+    }
+
+    .glass-shine {
+        position: absolute;
+        top: 5px;
+        left: 6px;
+        width: 6px;
+        height: 90%;
+        background: linear-gradient(180deg,
+                rgba(255, 255, 255, 0.5) 0%,
+                rgba(255, 255, 255, 0.2) 40%,
+                rgba(255, 255, 255, 0.4) 100%);
+        border-radius: 3px;
+    }
+
+    .glass-highlight {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        width: 4px;
+        height: 15px;
+        background: rgba(255, 255, 255, 0.3);
+        border-radius: 2px;
+    }
+
+    /* Tea Liquid with waves */
+    .tea-liquid {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        background: linear-gradient(180deg,
+                #D2691E 0%,
+                #CD853F 40%,
+                #8B4513 100%);
+        border-radius: 0 0 10px 10px;
+        overflow: hidden;
+    }
+
+    .tea-wave {
+        position: absolute;
+        top: -8px;
+        left: -20%;
+        width: 140%;
+        height: 15px;
+        background: rgba(210, 105, 30, 0.6);
+        border-radius: 50%;
+        animation: wave-motion 1.5s ease-in-out infinite;
+    }
+
+    .tea-wave.wave2 {
+        top: -5px;
+        left: -10%;
+        background: rgba(205, 133, 63, 0.4);
+        animation-delay: 0.3s;
+        animation-duration: 1.8s;
+    }
+
+    .left-tea {
+        animation: left-fill 4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    }
+
+    .right-tea {
+        animation: right-fill 4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    }
+
+    /* Steam */
+    .steam {
+        position: absolute;
+        top: -20px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 4px;
+    }
+
+    .steam span {
+        width: 4px;
+        background: rgba(255, 255, 255, 0.4);
+        border-radius: 10px;
+        animation: steam-rise 2s ease-out infinite;
+    }
+
+    .steam span:nth-child(1) {
+        height: 12px;
+        animation-delay: 0s;
+    }
+
+    .steam span:nth-child(2) {
+        height: 16px;
+        animation-delay: 0.3s;
+    }
+
+    .steam span:nth-child(3) {
+        height: 10px;
+        animation-delay: 0.6s;
+    }
+
+    .left-steam {
+        animation: steam-visibility-left 4s infinite;
+    }
+
+    .right-steam {
+        animation: steam-visibility-right 4s infinite;
+    }
+
+    /* SVG Tea Stream */
+    .tea-stream-svg {
+        position: absolute;
+        width: 130px;
+        height: 80px;
+        top: -25px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 1;
+    }
+
+    .tea-stream-path {
+        stroke-dasharray: 150;
+        stroke-dashoffset: 150;
+    }
+
+    .left-stream {
+        animation: pour-stream-left 4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    }
+
+    .right-stream {
+        animation: pour-stream-right 4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    }
+
+    /* Droplets */
+    .droplets {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+    }
+
+    .drop {
+        position: absolute;
+        width: 6px;
+        height: 8px;
+        background: linear-gradient(180deg, #D2691E, #8B4513);
+        border-radius: 50% 50% 50% 50% / 30% 30% 70% 70%;
+        opacity: 0;
+    }
+
+    .drop1 {
+        animation: droplet1 4s ease-in infinite;
+    }
+
+    .drop2 {
+        animation: droplet2 4s ease-in infinite 0.15s;
+    }
+
+    .drop3 {
+        animation: droplet3 4s ease-in infinite 0.3s;
+    }
+
+    /* Loader Text */
+    .loader-text {
+        color: white;
+        font-family: 'Poppins', sans-serif;
+        font-size: 1.1rem;
+        letter-spacing: 3px;
+        text-transform: uppercase;
+        text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    }
+
+    .dots::after {
+        content: '';
+        animation: dots 1.2s steps(4) infinite;
+    }
+
+    @keyframes dots {
+        0% {
+            content: '';
+        }
+
+        25% {
+            content: '.';
+        }
+
+        50% {
+            content: '..';
+        }
+
+        75%,
+        100% {
+            content: '...';
+        }
+    }
+
+    /* Cup Tilt Animations - Smooth */
+    @keyframes tilt-left {
+
+        0%,
+        5% {
+            transform: rotate(0deg) translateY(0);
+        }
+
+        15% {
+            transform: rotate(-55deg) translateY(-15px) translateX(10px);
+        }
+
+        45% {
+            transform: rotate(-55deg) translateY(-15px) translateX(10px);
+        }
+
+        55%,
+        100% {
+            transform: rotate(0deg) translateY(0);
+        }
+    }
+
+    @keyframes tilt-right {
+
+        0%,
+        55% {
+            transform: rotate(0deg) translateY(0);
+        }
+
+        65% {
+            transform: rotate(55deg) translateY(-15px) translateX(-10px);
+        }
+
+        95% {
+            transform: rotate(55deg) translateY(-15px) translateX(-10px);
+        }
+
+        100% {
+            transform: rotate(0deg) translateY(0);
+        }
+    }
+
+    /* Tea Level Animations - Smooth */
+    @keyframes left-fill {
+
+        0%,
+        5% {
+            height: 75%;
+        }
+
+        15%,
+        45% {
+            height: 12%;
+        }
+
+        55%,
+        95% {
+            height: 75%;
+        }
+
+        100% {
+            height: 75%;
+        }
+    }
+
+    @keyframes right-fill {
+
+        0%,
+        5% {
+            height: 12%;
+        }
+
+        15%,
+        45% {
+            height: 75%;
+        }
+
+        55%,
+        95% {
+            height: 12%;
+        }
+
+        100% {
+            height: 12%;
+        }
+    }
+
+    /* Pour Stream Animations */
+    @keyframes pour-stream-left {
+
+        0%,
+        8% {
+            stroke-dashoffset: 150;
+            opacity: 0;
+        }
+
+        12% {
+            stroke-dashoffset: 0;
+            opacity: 1;
+        }
+
+        45% {
+            stroke-dashoffset: 0;
+            opacity: 1;
+        }
+
+        50% {
+            stroke-dashoffset: -150;
+            opacity: 0;
+        }
+
+        100% {
+            stroke-dashoffset: 150;
+            opacity: 0;
+        }
+    }
+
+    @keyframes pour-stream-right {
+
+        0%,
+        58% {
+            stroke-dashoffset: 150;
+            opacity: 0;
+        }
+
+        62% {
+            stroke-dashoffset: 0;
+            opacity: 1;
+        }
+
+        95% {
+            stroke-dashoffset: 0;
+            opacity: 1;
+        }
+
+        100% {
+            stroke-dashoffset: -150;
+            opacity: 0;
+        }
+    }
+
+    /* Wave Motion */
+    @keyframes wave-motion {
+
+        0%,
+        100% {
+            transform: translateX(-5%) rotate(-2deg);
+        }
+
+        50% {
+            transform: translateX(5%) rotate(2deg);
+        }
+    }
+
+    /* Steam Animations */
+    @keyframes steam-rise {
+        0% {
+            opacity: 0;
+            transform: translateY(0) scaleY(0.5);
+        }
+
+        30% {
+            opacity: 0.6;
+        }
+
+        100% {
+            opacity: 0;
+            transform: translateY(-25px) scaleY(1.5);
+        }
+    }
+
+    @keyframes steam-visibility-left {
+
+        0%,
+        50% {
+            opacity: 0;
+        }
+
+        55%,
+        100% {
+            opacity: 1;
+        }
+    }
+
+    @keyframes steam-visibility-right {
+
+        0%,
+        5% {
+            opacity: 0;
+        }
+
+        10%,
+        50% {
+            opacity: 1;
+        }
+
+        55%,
+        100% {
+            opacity: 0;
+        }
+    }
+
+    /* Droplet Animations */
+    @keyframes droplet1 {
+
+        0%,
+        10% {
+            opacity: 0;
+            top: 10px;
+            left: 65px;
+        }
+
+        15%,
+        40% {
+            opacity: 1;
+            top: 50px;
+            left: 85px;
+        }
+
+        45% {
+            opacity: 0;
+            top: 70px;
+        }
+
+        100% {
+            opacity: 0;
+        }
+    }
+
+    @keyframes droplet2 {
+
+        0%,
+        10% {
+            opacity: 0;
+            top: 5px;
+            left: 60px;
+        }
+
+        15%,
+        40% {
+            opacity: 1;
+            top: 55px;
+            left: 80px;
+        }
+
+        45% {
+            opacity: 0;
+            top: 75px;
+        }
+
+        100% {
+            opacity: 0;
+        }
+    }
+
+    @keyframes droplet3 {
+
+        0%,
+        60% {
+            opacity: 0;
+            top: 10px;
+            left: 65px;
+        }
+
+        65%,
+        90% {
+            opacity: 1;
+            top: 50px;
+            left: 45px;
+        }
+
+        95% {
+            opacity: 0;
+            top: 70px;
+        }
+
+        100% {
+            opacity: 0;
+        }
+    }
+</style>
+
+<script>
+    window.addEventListener('load', function () {
+        setTimeout(function () {
+            const loader = document.getElementById('chaiLoader');
+            if (loader) loader.classList.add('hidden');
+        }, 600);
+    });
+
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('a[href]:not([target="_blank"]):not([href^="#"]):not([href^="mailto"]):not([href^="javascript"])').forEach(link => {
+            link.addEventListener('click', function () {
+                const href = this.getAttribute('href');
+                if (href && !href.startsWith('#')) {
+                    const loader = document.getElementById('chaiLoader');
+                    if (loader) loader.classList.remove('hidden');
+                }
+            });
+        });
+    });
+</script>

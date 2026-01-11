@@ -7,6 +7,99 @@
     <title>Checkout - CanteenOs</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <style>
+        .schedule-toggle {
+            display: flex;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 1rem;
+        }
+
+        .schedule-toggle .toggle-btn {
+            flex: 1;
+            padding: 12px;
+            text-align: center;
+            cursor: pointer;
+            background: var(--bg-secondary, #f4f4f4);
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+
+        .schedule-toggle .toggle-btn.active {
+            background: var(--primary-color, #2563eb);
+            color: white;
+            border-color: var(--primary-color, #2563eb);
+        }
+
+        .schedule-toggle .toggle-btn:hover:not(.active) {
+            background: var(--bg-hover, #e5e5e5);
+        }
+
+        .schedule-options {
+            background: var(--bg-secondary, #f8f9fa);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            display: none;
+        }
+
+        .schedule-options.show {
+            display: block;
+            animation: slideDown 0.3s ease;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .payment-type-selector {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .payment-type-option {
+            flex: 1;
+            padding: 1rem;
+            border: 2px solid var(--border-color, #e2e8f0);
+            border-radius: 8px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .payment-type-option.selected {
+            border-color: var(--primary-color, #2563eb);
+            background: rgba(37, 99, 235, 0.1);
+        }
+
+        .payment-type-option:hover:not(.selected) {
+            border-color: var(--primary-light, #60a5fa);
+        }
+
+        .payment-type-option .icon {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .operating-hours-notice {
+            background: var(--warning-bg, #fef3c7);
+            color: var(--warning-text, #92400e);
+            border-radius: 6px;
+            padding: 0.75rem;
+            font-size: 0.875rem;
+            margin-bottom: 1rem;
+        }
+    </style>
 </head>
 
 <body>
@@ -73,8 +166,64 @@
                             <span class="h5 text-primary font-weight-bold">₹{{ total_amount }}</span>
                         </div>
 
-                        <form method="POST" action="{{ url_for('process_payment') }}" class="mt-4">
-                            <div class="form-group">
+                        <form method="POST" action="{{ url_for('process_payment') }}" class="mt-4" id="payment-form">
+                            <!-- Order Type Toggle -->
+                            <div class="schedule-toggle">
+                                <div class="toggle-btn active" data-type="now" onclick="selectOrderType('now')">
+                                    <svg style="width: 1rem; height: 1rem; margin-right: 0.25rem;">
+                                        <use href="#icon-zap" />
+                                    </svg> Order Now
+                                </div>
+                                <div class="toggle-btn" data-type="schedule" onclick="selectOrderType('schedule')">
+                                    <svg style="width: 1rem; height: 1rem; margin-right: 0.25rem;">
+                                        <use href="#icon-clock" />
+                                    </svg> Schedule
+                                </div>
+                            </div>
+                            <input type="hidden" name="order_type" id="order_type" value="now">
+
+                            <!-- Schedule Options (Hidden by default) -->
+                            <div class="schedule-options" id="schedule-options">
+                                {% if operating_hours %}
+                                <div class="operating-hours-notice">
+                                    <svg style="width: 1rem; height: 1rem; margin-right: 0.25rem;">
+                                        <use href="#icon-info" />
+                                    </svg>
+                                    {% if operating_hours.all_day %}
+                                    Canteen is open 24/7 - schedule anytime!
+                                    {% else %}
+                                    Canteen hours: {{ operating_hours.start }} - {{ operating_hours.end }}
+                                    {% endif %}
+                                </div>
+                                {% endif %}
+
+                                <div class="form-group">
+                                    <label for="scheduled_time">Pickup Date & Time:</label>
+                                    <input type="datetime-local" class="form-control" id="scheduled_time"
+                                        name="scheduled_time" min="" {% if operating_hours and not
+                                        operating_hours.all_day %} data-start-hour="{{ operating_hours.start }}"
+                                        data-end-hour="{{ operating_hours.end }}" {% endif %}>
+                                </div>
+
+                                <!-- Payment Type for Scheduled Orders -->
+                                <label class="mb-2">Payment Option:</label>
+                                <div class="payment-type-selector">
+                                    <div class="payment-type-option selected" data-type="upfront"
+                                        onclick="selectPaymentType('upfront')">
+                                        <div class="icon">💳</div>
+                                        <strong>Pay Now</strong>
+                                        <small class="d-block text-muted">Pre-book & pay upfront</small>
+                                    </div>
+                                    <div class="payment-type-option" data-type="cod" onclick="selectPaymentType('cod')">
+                                        <div class="icon">💵</div>
+                                        <strong>Cash on Pickup</strong>
+                                        <small class="d-block text-muted">Pay when you collect</small>
+                                    </div>
+                                </div>
+                                <input type="hidden" name="payment_type" id="payment_type" value="upfront">
+                            </div>
+
+                            <div class="form-group" id="payment-method-group">
                                 <label for="payment-method">Payment Method:</label>
                                 <select class="form-control" id="payment-method" name="payment_method"
                                     onchange="handlePaymentMethodChange()">
@@ -91,10 +240,10 @@
                                     style="width: 150px; height: 150px; border-radius: 8px;">
                             </div>
 
-                            <button type="submit" class="btn btn-success btn-block btn-lg">
+                            <button type="submit" class="btn btn-success btn-block btn-lg" id="submit-btn">
                                 <span class="btn-icon"><svg>
                                         <use href="#icon-credit-card" />
-                                    </svg></span> Pay ₹{{ total_amount }}
+                                    </svg></span> <span id="btn-text">Pay ₹{{ total_amount }}</span>
                             </button>
                         </form>
                     </div>
@@ -127,13 +276,82 @@
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.3/dist/umd/popper.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
     <script>
+        const totalAmount = {{ total_amount }};
+
+        function selectOrderType(type) {
+            document.querySelectorAll('.schedule-toggle .toggle-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.type === type);
+            });
+            document.getElementById('order_type').value = type;
+
+            const scheduleOptions = document.getElementById('schedule-options');
+            const paymentMethodGroup = document.getElementById('payment-method-group');
+
+            if (type === 'schedule') {
+                scheduleOptions.classList.add('show');
+                // Set minimum datetime to now + 30 minutes
+                const now = new Date();
+                now.setMinutes(now.getMinutes() + 30);
+                document.getElementById('scheduled_time').min = now.toISOString().slice(0, 16);
+                updateButtonText();
+            } else {
+                scheduleOptions.classList.remove('show');
+                document.getElementById('btn-text').textContent = `Pay ₹${totalAmount}`;
+                document.getElementById('payment_type').value = 'upfront';
+            }
+        }
+
+        function selectPaymentType(type) {
+            document.querySelectorAll('.payment-type-option').forEach(opt => {
+                opt.classList.toggle('selected', opt.dataset.type === type);
+            });
+            document.getElementById('payment_type').value = type;
+            updateButtonText();
+        }
+
+        function updateButtonText() {
+            const orderType = document.getElementById('order_type').value;
+            const paymentType = document.getElementById('payment_type').value;
+            const btnText = document.getElementById('btn-text');
+
+            if (orderType === 'schedule') {
+                if (paymentType === 'cod') {
+                    btnText.textContent = `Schedule Order (Pay on Pickup)`;
+                } else {
+                    btnText.textContent = `Pay ₹${totalAmount} & Schedule`;
+                }
+            } else {
+                btnText.textContent = `Pay ₹${totalAmount}`;
+            }
+        }
+
         function handlePaymentMethodChange() {
             var paymentMethod = document.getElementById('payment-method').value;
             var qrSection = document.getElementById('qr-section');
             qrSection.style.display = (paymentMethod === 'qr_code') ? 'block' : 'none';
         }
+
+        // Validate scheduled time on form submit
+        document.getElementById('payment-form').addEventListener('submit', function (e) {
+            const orderType = document.getElementById('order_type').value;
+            if (orderType === 'schedule') {
+                const scheduledTime = document.getElementById('scheduled_time').value;
+                if (!scheduledTime) {
+                    e.preventDefault();
+                    alert('Please select a pickup date and time.');
+                    return false;
+                }
+
+                const selectedDate = new Date(scheduledTime);
+                const now = new Date();
+                if (selectedDate <= now) {
+                    e.preventDefault();
+                    alert('Please select a future date and time.');
+                    return false;
+                }
+            }
+        });
     </script>
 </body>
 
 </html>
-

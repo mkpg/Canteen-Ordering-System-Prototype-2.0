@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block title %}Setup Authenticator - CanteenOs{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow-sm border-0 rounded-lg">
+                <div class="card-header bg-white border-0 pt-4">
+                    <h4 class="text-center">Setup Authenticator App</h4>
+                </div>
+                <div class="card-body p-4">
+                    <p class="text-muted mb-4">
+                        1. Install an authenticator app like Google Authenticator or Authy.<br>
+                        2. Scan the QR code below.<br>
+                        3. Enter the 6-digit code to verify.
+                    </p>
+
+                    <div class="text-center mb-4 p-3 bg-light rounded">
+                        <img src="{{ qr_uri }}" alt="QR Code" class="img-fluid mb-3"
+                            style="border: 4px solid white; border-radius: 8px;">
+                        <p class="small text-muted mb-1">Can't scan?</p>
+                        <code class="d-block p-1 bg-white border rounded">{{ totp_secret }}</code>
+                    </div>
+
+                    <form method="POST" action="{{ url_for('verify_totp_setup') }}">
+                        <div class="form-group">
+                            <label for="totp_code">Enter 6-digit code</label>
+                            <input type="text" class="form-control form-control-lg text-center letter-spacing-2"
+                                id="totp_code" name="totp_code" placeholder="000000" maxlength="6" required
+                                autocomplete="off">
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-block btn-lg">Verify & Enable</button>
+                    </form>
+
+                    <div class="text-center mt-3">
+                        <a href="{{ url_for('settings_2fa') }}" class="text-muted">Cancel</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .letter-spacing-2 {
+        letter-spacing: 2px;
+        font-weight: 600;
+        font-size: 1.5rem;
+    }
+</style>
+{% endblock %}

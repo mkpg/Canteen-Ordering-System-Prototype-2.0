@@ -52,6 +52,22 @@
                     <input type="password" class="form-control" id="password" name="password"
                         placeholder="Enter your password" required>
                 </div>
+                <div class="form-group form-check">
+                    <input type="checkbox" class="form-check-input" id="remember_device" name="remember_device">
+                    <label class="form-check-label" for="remember_device">Trust this device for 30 days (skip MFA)</label>
+                </div>
+                {% if organizations and organizations|length > 0 %}
+                <div class="form-group">
+                    <label for="organization_id">Select Organization</label>
+                    <select class="form-control" id="organization_id" name="organization_id">
+                        <option value="">-- Select your organization --</option>
+                        {% for org in organizations %}
+                        <option value="{{ org._id }}">{{ org.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <small class="form-text text-muted">Select the organization you want to access</small>
+                </div>
+                {% endif %}
                 <button type="submit" class="btn btn-primary btn-block btn-lg">Sign In</button>
             </form>
 

@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Settings - CanteenOs</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <style>
+        .settings-card {
+            border: none;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .settings-card .card-header {
+            background: linear-gradient(135deg, var(--primary-color, #2563eb), var(--primary-dark, #1d4ed8));
+            border: none;
+            padding: 1.25rem;
+        }
+
+        .time-input-group {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .time-input-group .form-control {
+            width: auto;
+        }
+
+        .time-input-group .separator {
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        .all-day-toggle {
+            background: var(--bg-secondary, #f8f9fa);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+
+        .preview-box {
+            background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+
+        .preview-box .icon {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+    </style>
+</head>
+
+<body>
+    {% include 'navbar.html' %}
+    <div class="container my-5">
+        <div class="page-header">
+            <h1><span class="text-icon"><svg>
+                        <use href="#icon-settings" />
+                    </svg></span> Admin Settings</h1>
+            <p class="text-muted">Configure your canteen operating hours and preferences</p>
+        </div>
+
+        <div class="row">
+            <div class="col-lg-8">
+                <!-- Operating Hours Card -->
+                <div class="card settings-card mb-4">
+                    <div class="card-header text-white">
+                        <h5 class="mb-0">
+                            <svg style="width: 1.25rem; height: 1.25rem; margin-right: 0.5rem;">
+                                <use href="#icon-clock" />
+                            </svg> Operating Hours
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted mb-4">
+                            Set your canteen's operating hours. Users can only schedule orders within these hours.
+                        </p>
+
+                        <form method="POST" action="{{ url_for('update_operating_hours') }}">
+                            <div class="form-group">
+                                <label class="font-weight-bold">Daily Hours</label>
+                                <div class="time-input-group">
+                                    <div>
+                                        <label for="start_time" class="small text-muted">Opens at</label>
+                                        <input type="time" class="form-control" id="start_time" name="start_time"
+                                            value="{{ operating_hours.start or '08:00' }}" {% if operating_hours.all_day
+                                            %}disabled{% endif %}>
+                                    </div>
+                                    <span class="separator mt-4">—</span>
+                                    <div>
+                                        <label for="end_time" class="small text-muted">Closes at</label>
+                                        <input type="time" class="form-control" id="end_time" name="end_time"
+                                            value="{{ operating_hours.end or '20:00' }}" {% if operating_hours.all_day
+                                            %}disabled{% endif %}>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="all-day-toggle">
+                                <div class="custom-control custom-switch">
+                                    <input type="checkbox" class="custom-control-input" id="all_day" name="all_day" {%
+                                        if operating_hours.all_day %}checked{% endif %} onchange="toggleAllDay()">
+                                    <label class="custom-control-label" for="all_day">
+                                        <strong>24/7 Availability</strong>
+                                        <br><small class="text-muted">Allow orders to be scheduled at any time</small>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="preview-box" id="preview-box">
+                                <div class="icon">🕐</div>
+                                <strong>Current Setting:</strong>
+                                <p class="mb-0" id="preview-text">
+                                    {% if operating_hours.all_day %}
+                                    Open 24/7 - Orders can be scheduled anytime
+                                    {% else %}
+                                    Open {{ operating_hours.start or '08:00' }} - {{ operating_hours.end or '20:00' }}
+                                    {% endif %}
+                                </p>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary btn-lg mt-4">
+                                <svg style="width: 1rem; height: 1rem; margin-right: 0.25rem;">
+                                    <use href="#icon-check" />
+                                </svg> Save Changes
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <!-- Organization Info Card -->
+                <div class="card mb-4">
+                    <div class="card-header bg-light">
+                        <h6 class="mb-0">
+                            <svg style="width: 1rem; height: 1rem; margin-right: 0.5rem;">
+                                <use href="#icon-building" />
+                            </svg> Organization
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <h5>{{ organization.name }}</h5>
+                        {% if organization.description %}
+                        <p class="text-muted mb-0">{{ organization.description }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Help Card -->
+                <div class="card border-info">
+                    <div class="card-header bg-info text-white">
+                        <h6 class="mb-0">
+                            <svg style="width: 1rem; height: 1rem; margin-right: 0.5rem;">
+                                <use href="#icon-info" />
+                            </svg> About Scheduling
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <p class="small mb-2">
+                            <strong>Operating Hours</strong> define when users can schedule order pickups.
+                        </p>
+                        <ul class="small mb-0 pl-3">
+                            <li>Users see your hours when scheduling</li>
+                            <li>Orders outside hours are blocked</li>
+                            <li>Enable 24/7 for no restrictions</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="text-center mt-4">
+            <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-primary">← Back to Dashboard</a>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script>
+        function toggleAllDay() {
+            const allDayChecked = document.getElementById('all_day').checked;
+            const startTime = document.getElementById('start_time');
+            const endTime = document.getElementById('end_time');
+            const previewText = document.getElementById('preview-text');
+
+            startTime.disabled = allDayChecked;
+            endTime.disabled = allDayChecked;
+
+            if (allDayChecked) {
+                previewText.textContent = 'Open 24/7 - Orders can be scheduled anytime';
+            } else {
+                updatePreview();
+            }
+        }
+
+        function updatePreview() {
+            const startTime = document.getElementById('start_time').value;
+            const endTime = document.getElementById('end_time').value;
+            const previewText = document.getElementById('preview-text');
+
+            if (startTime && endTime) {
+                previewText.textContent = `Open ${startTime} - ${endTime}`;
+            }
+        }
+
+        document.getElementById('start_time').addEventListener('change', updatePreview);
+        document.getElementById('end_time').addEventListener('change', updatePreview);
+    </script>
+</body>
+
+</html>

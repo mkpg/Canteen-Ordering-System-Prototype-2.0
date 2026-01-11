@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+
+{% block title %}2-Factor Authentication - CanteenOs{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-sm border-0 rounded-lg">
+                <div class="card-header bg-transparent border-0 pt-4 pb-2">
+                    <h3 class="text-center"><i class="fas fa-shield-alt text-primary mr-2"></i>2-Factor Authentication
+                    </h3>
+                </div>
+                <div class="card-body p-4">
+                    <p class="text-muted text-center mb-4">
+                        Secure your account with an extra layer of protection.
+                    </p>
+
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                    {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    {% endfor %}
+                    {% endif %}
+                    {% endwith %}
+
+                    <!-- Current Status -->
+                    <div class="status-section mb-5 text-center">
+                        <h5 class="mb-3">Current Status</h5>
+                        {% if user.get('two_factor_enabled') %}
+                        <div class="badge badge-success p-2 px-3 mb-2" style="font-size: 1rem;">
+                            <i class="fas fa-check-circle mr-1"></i> Enabled
+                        </div>
+                        <p class="text-muted">Method: <strong>{{ user.get('two_factor_method', 'email')|upper
+                                }}</strong></p>
+
+                        <form action="{{ url_for('disable_2fa') }}" method="POST" class="d-inline-block mt-2">
+                            <button type="submit" class="btn btn-outline-danger btn-sm"
+                                onclick="return confirm('Are you sure you want to disable 2FA? This makes your account less secure.');">
+                                Disable 2FA
+                            </button>
+                        </form>
+                        {% else %}
+                        <div class="badge badge-secondary p-2 px-3 mb-3" style="font-size: 1rem;">
+                            <i class="fas fa-times-circle mr-1"></i> Disabled
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    {% if not user.get('two_factor_enabled') %}
+                    <!-- Setup Options -->
+                    <div class="setup-options">
+                        <div class="row">
+                            <!-- Email Option -->
+                            <div class="col-md-6 mb-3">
+                                <div class="card h-100 border-primary-hover cursor-pointer"
+                                    onclick="document.getElementById('setup-email-form').submit();">
+                                    <div class="card-body text-center">
+                                        <div class="icon-circle bg-light text-primary mb-3 mx-auto"
+                                            style="width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; border-radius: 50%;">
+                                            <svg style="width: 30px; height: 30px;">
+                                                <use href="#icon-mail" />
+                                            </svg>
+                                        </div>
+                                        <h5>Email OTP</h5>
+                                        <p class="small text-muted">Receive a 6-digit code via email every time you
+                                            login.</p>
+                                        <form id="setup-email-form" action="{{ url_for('setup_2fa_email') }}"
+                                            method="POST">
+                                            <button type="submit" class="btn btn-primary btn-sm mt-2">Enable Email
+                                                2FA</button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- TOTP Option -->
+                            <div class="col-md-6 mb-3">
+                                <div class="card h-100 border-primary-hover cursor-pointer"
+                                    onclick="location.href='{{ url_for('setup_2fa_totp') }}'">
+                                    <div class="card-body text-center">
+                                        <div class="icon-circle bg-light text-primary mb-3 mx-auto"
+                                            style="width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; border-radius: 50%;">
+                                            <svg style="width: 30px; height: 30px;">
+                                                <use href="#icon-lock" />
+                                            </svg>
+                                        </div>
+                                        <h5>Authenticator App</h5>
+                                        <p class="small text-muted">Use Google Authenticator or similar apps. Works
+                                            offline.</p>
+                                        <a href="{{ url_for('setup_2fa_totp') }}"
+                                            class="btn btn-primary btn-sm mt-2">Setup TOTP</a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <div class="text-center mt-4">
+                        <a href="{{ url_for('profile') }}" class="text-muted">Back to Profile</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .border-primary-hover {
+        transition: all 0.3s ease;
+        border: 1px solid #e2e8f0;
+    }
+
+    .border-primary-hover:hover {
+        border-color: var(--primary-color);
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05);
+    }
+</style>
+{% endblock %}

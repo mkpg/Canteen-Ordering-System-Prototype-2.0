@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Organizations - CanteenOs</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+
+<body>
+    {% include 'navbar.html' %}
+    <div class="container my-5">
+        <div class="page-header">
+            <h1><span class="text-icon"><svg>
+                        <use href="#icon-building" />
+                    </svg></span> Manage Organizations</h1>
+            <p class="text-muted">Create and manage canteen organizations</p>
+        </div>
+
+        <!-- Create New Organization -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><svg style="width: 1.25rem; height: 1.25rem; margin-right: 0.5rem;">
+                        <use href="#icon-plus" />
+                    </svg> Create New Organization</h5>
+            </div>
+            <div class="card-body">
+                <form action="{{ url_for('core_admin_organizations') }}" method="POST">
+                    <div class="row">
+                        <div class="col-md-5">
+                            <div class="form-group">
+                                <label for="org_name">Organization Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="org_name" name="org_name"
+                                    placeholder="E.g., ABC College" required>
+                            </div>
+                        </div>
+                        <div class="col-md-5">
+                            <div class="form-group">
+                                <label for="org_description">Description</label>
+                                <input type="text" class="form-control" id="org_description" name="org_description"
+                                    placeholder="Brief description (optional)">
+                            </div>
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary btn-block mb-3">Create</button>
+                        </div>
+                    </div>
+                    <small class="text-muted">A unique admin code will be auto-generated for the organization.</small>
+                </form>
+            </div>
+        </div>
+
+        <!-- Organizations List -->
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">All Organizations ({{ organizations|length }})</h5>
+                <a href="{{ url_for('core_admin_dashboard') }}" class="btn btn-sm btn-outline-secondary">Back to
+                    Dashboard</a>
+            </div>
+            <div class="card-body p-0">
+                {% if organizations %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Organization</th>
+                                <th>Description</th>
+                                <th>Admin Code</th>
+                                <th>Users</th>
+                                <th>Admins</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for org in organizations %}
+                            <tr>
+                                <td><strong>{{ org.name }}</strong></td>
+                                <td class="text-muted">{{ org.description or '-' }}</td>
+                                <td>
+                                    <code class="bg-light p-1 rounded">{{ org.admin_code }}</code>
+                                    <form action="{{ url_for('regenerate_org_code', org_id=org._id) }}" method="POST"
+                                        class="d-inline">
+                                        <button type="submit" class="btn btn-sm btn-link p-0 ml-1"
+                                            title="Regenerate Code"
+                                            onclick="return confirm('Regenerate admin code? Current admins will NOT be affected.');">
+                                            <svg style="width: 0.9rem; height: 0.9rem;">
+                                                <use href="#icon-refresh" />
+                                            </svg>
+                                        </button>
+                                    </form>
+                                </td>
+                                <td>{{ org.user_count }}</td>
+                                <td>{{ org.admin_count }}</td>
+                                <td>
+                                    {% if org.is_active %}
+                                    <span class="badge badge-success">Active</span>
+                                    {% else %}
+                                    <span class="badge badge-secondary">Inactive</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <form action="{{ url_for('toggle_organization', org_id=org._id) }}" method="POST"
+                                        class="d-inline">
+                                        {% if org.is_active %}
+                                        <button type="submit" class="btn btn-sm btn-outline-warning"
+                                            onclick="return confirm('Deactivate this organization?');">Deactivate</button>
+                                        {% else %}
+                                        <button type="submit" class="btn btn-sm btn-outline-success">Activate</button>
+                                        {% endif %}
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-5 text-muted">
+                    <svg style="width: 3rem; height: 3rem; margin-bottom: 1rem; opacity: 0.5;">
+                        <use href="#icon-building" />
+                    </svg>
+                    <p>No organizations created yet. Create your first organization above!</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Info Card -->
+        <div class="alert alert-info mt-4">
+            <strong><svg style="width: 1rem; height: 1rem; margin-right: 0.35rem;">
+                    <use href="#icon-info" />
+                </svg> How Admin Codes Work:</strong>
+            <ul class="mb-0 mt-2">
+                <li>Each organization gets a unique <strong>Admin Code</strong> (e.g., ORG-A1B2C3)</li>
+                <li>Share this code with the organization's admin for them to register</li>
+                <li>When they register with this code, they become the <strong>Org Admin</strong> for that organization
+                </li>
+                <li>Regular users select the organization from a dropdown when registering</li>
+            </ul>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</body>
+
+</html>
