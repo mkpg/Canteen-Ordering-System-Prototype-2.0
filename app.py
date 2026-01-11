@@ -11,8 +11,6 @@ import base64
 import random
 import string
 from urllib.parse import quote
-import pyotp
-import qrcode
 from flask import Flask, render_template, request, redirect, url_for, session, flash, Response, send_file
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
@@ -79,16 +77,7 @@ def allowed_file(filename):
     """Check if filename has an allowed image extension."""
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-def generate_qr_data_uri(data):
-    """Generate a PNG QR code data URI for inline display."""
-    qr = qrcode.QRCode(box_size=8, border=2)
-    qr.add_data(data)
-    qr.make(fit=True)
-    img = qr.make_image(fill_color="black", back_color="white")
-    buf = BytesIO()
-    img.save(buf, format='PNG')
-    buf.seek(0)
-    return 'data:image/png;base64,' + base64.b64encode(buf.getvalue()).decode('ascii')
+
 
 def verify_remember_device_cookie():
     """Return payload from remember-device cookie if valid; otherwise None."""
@@ -268,51 +257,7 @@ def get_all_organizations():
     """Get all active organizations for dropdowns."""
     return list(organizations_col.find({'is_active': True}).sort('name', 1))
 
-def clear_pending_mfa_session():
-    """Remove all MFA-related session keys."""
-    for key in [
-        'pending_mfa_user',
-        'pending_org_id',
-        'pending_email_otp',
-        'pending_email_otp_expiry'
-    ]:
-        session.pop(key, None)
 
-def start_mfa_flow(user, organization_id=None):
-    """Kick off email or TOTP verification based on user preference."""
-    clear_pending_mfa_session()
-
-    method = user.get('two_factor_method', 'email')
-    
-    session['pending_mfa_user'] = user['username']
-    session['pending_org_id'] = str(organization_id) if organization_id else ''
-    
-    # If using Email OTP (default)
-    if method == 'email':
-        email_otp = f"{random.randint(100000, 999999)}"
-        session['pending_email_otp'] = email_otp
-        session['pending_email_otp_expiry'] = (datetime.utcnow() + timedelta(minutes=5)).timestamp()
-
-        msg = Message(
-            "Your CanteenOs login code",
-            sender=app.config['MAIL_USERNAME'],
-            recipients=[user['email']],
-            body=(
-                f"Hi {user['first_name']},\n\n"
-                f"Your login verification code is {email_otp}.\n"
-                "It expires in 5 minutes. If this wasn't you, you can ignore this email.\n\n"
-                "- CanteenOs Team"
-            )
-        )
-        try:
-            mail.send(msg)
-            flash('Check your email for the 6-digit code.', 'info')
-        except Exception as e:
-            flash('Could not send verification email. Please try again.', 'danger')
-            print(f"MFA email send error: {e}")
-    else:
-        # TOTP case
-        flash('Please enter the code from your Authenticator app.', 'info')
 
 # Context processor to make cart_count and organization available in all templates
 @app.context_processor
@@ -477,9 +422,6 @@ def login():
     if 'username' in session:
         flash('You are already logged in. Logout first to switch organization.', 'info')
         return redirect(url_for('menu'))
-
-    # Reset any leftover MFA session artifacts
-    clear_pending_mfa_session()
     
     organizations = get_all_organizations()
     
@@ -487,34 +429,12 @@ def login():
         username = request.form['username'].strip()
         password = request.form['password']
         organization_id_str = request.form.get('organization_id', '')
-        remember_device_opt_in = request.form.get('remember_device') == 'on'
         
         user = users_col.find_one({'username': username})
-        remember_cookie = verify_remember_device_cookie()
         
         if user and check_password_hash(user['password'], password):
             # Core admin doesn't need to select organization
             if user.get('role') == 'core_admin':
-                # If a valid remember cookie exists, skip MFA
-                if remember_cookie and remember_cookie.get('u') == username:
-                    complete_login(user, None)
-                    resp = redirect(url_for('core_admin_dashboard'))
-                    resp = set_remember_device_cookie(resp, username, None)
-                    flash(f'Welcome back, {user["first_name"]}! Device trusted.', 'success')
-                    return resp
-                
-                # Check if MFA should be triggered (forced for Core Admin or if enabled)
-                if user.get('two_factor_enabled') or user.get('role') == 'core_admin':
-                    # Ensure Core Admin has method set if missing
-                    if user.get('role') == 'core_admin' and not user.get('two_factor_method'):
-                         users_col.update_one({'_id': user['_id']}, {'$set': {'two_factor_enabled': True, 'two_factor_method': 'email'}})
-                         user['two_factor_method'] = 'email'
-                    
-                    start_mfa_flow(user, None)
-                    session['remember_device_opt_in'] = remember_device_opt_in
-                    return redirect(url_for('verify_mfa'))
-                
-                # Direct login if MFA not enabled
                 complete_login(user, None)
                 resp = redirect(url_for('core_admin_dashboard'))
                 flash(f'Welcome back, {user["first_name"]}!', 'success')
@@ -546,20 +466,6 @@ def login():
                         flash('This organization is not active.', 'danger')
                         return render_template('login.html', organizations=organizations)
                     
-                    # If a valid remember cookie exists for this user+org, bypass MFA
-                    if remember_cookie and remember_cookie.get('u') == username and remember_cookie.get('org') == str(selected_org_id):
-                        complete_login(user, str(selected_org_id))
-                        resp = redirect(url_for('menu'))
-                        resp = set_remember_device_cookie(resp, username, selected_org_id)
-                        flash(f'Welcome back, {user["first_name"]}! Device trusted.', 'success')
-                        return resp
-
-                    # Check MFA
-                    if user.get('two_factor_enabled'):
-                        start_mfa_flow(user, selected_org_id)
-                        session['remember_device_opt_in'] = remember_device_opt_in
-                        return redirect(url_for('verify_mfa'))
-                    
                     # Direct Login
                     complete_login(user, str(selected_org_id))
                     resp = redirect(url_for('menu'))
@@ -571,20 +477,6 @@ def login():
                     return render_template('login.html', organizations=organizations)
             else:
                 # No organizations in system, just log in
-                if remember_cookie and remember_cookie.get('u') == username and not remember_cookie.get('org'):
-                    complete_login(user, None)
-                    resp = redirect(url_for('menu'))
-                    resp = set_remember_device_cookie(resp, username, None)
-                    flash(f'Welcome back, {user["first_name"]}! Device trusted.', 'success')
-                    return resp
-                
-                # Check MFA
-                if user.get('two_factor_enabled'):
-                    start_mfa_flow(user, None)
-                    session['remember_device_opt_in'] = remember_device_opt_in
-                    return redirect(url_for('verify_mfa'))
-                
-                # Direct Login
                 complete_login(user, None)
                 resp = redirect(url_for('menu'))
                 flash(f'Welcome back, {user["first_name"]}!', 'success')
@@ -594,75 +486,7 @@ def login():
     
     return render_template('login.html', organizations=organizations)
 
-@app.route('/verify_mfa', methods=['GET', 'POST'])
-def verify_mfa():
-    """Verify email OTP or TOTP before completing login."""
-    if 'pending_mfa_user' not in session:
-        flash('Please log in to continue.', 'warning')
-        return redirect(url_for('login'))
 
-    user = users_col.find_one({'username': session['pending_mfa_user']})
-    if not user:
-        clear_pending_mfa_session()
-        flash('Session expired. Please log in again.', 'warning')
-        return redirect(url_for('login'))
-
-    method = user.get('two_factor_method', 'email')
-
-    if request.method == 'POST':
-        email_otp = request.form.get('email_otp', '').strip()
-        totp_code = request.form.get('totp_code', '').strip()
-
-        # Validation Logic
-        valid = False
-        
-        if method == 'email':
-            expected_email_otp = session.get('pending_email_otp')
-            expiry_ts = session.get('pending_email_otp_expiry', 0)
-            now_ts = datetime.utcnow().timestamp()
-            
-            if not email_otp:
-                flash('Please enter the email code.', 'danger')
-            elif not expected_email_otp or now_ts > expiry_ts:
-                flash('Email code expired. Please log in again.', 'danger')
-                clear_pending_mfa_session()
-                return redirect(url_for('login'))
-            elif email_otp != expected_email_otp:
-                flash('Incorrect email code.', 'danger')
-            else:
-                valid = True
-        
-        elif method == 'totp':
-            if not totp_code:
-                flash('Please enter the authenticator code.', 'danger')
-            elif not user.get('totp_secret'):
-                flash('TOTP configuration error. Please contact support.', 'danger')
-            else:
-                totp = pyotp.TOTP(user['totp_secret'])
-                if totp.verify(totp_code, valid_window=1):
-                    valid = True
-                else:
-                    flash('Invalid or expired authenticator code.', 'danger')
-
-        if valid:
-            # All good — establish full session
-            pending_org = session.get('pending_org_id') or None
-            complete_login(user, pending_org)
-            clear_pending_mfa_session()
-
-            destination = url_for('core_admin_dashboard') if user.get('role') == 'core_admin' else url_for('menu')
-            resp = redirect(destination)
-
-            if session.pop('remember_device_opt_in', False):
-                resp = set_remember_device_cookie(resp, user['username'], pending_org)
-            flash(f'Welcome back, {user["first_name"]}!', 'success')
-            return resp
-
-    return render_template(
-        'verify_mfa.html',
-        email=user.get('email', ''),
-        method=method
-    )
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -853,88 +677,16 @@ def reset_password(token):
     
     return render_template('reset_password.html', token=token)
 
-# ==================== 2FA SETTINGS ROUTES ====================
-
-@app.route('/settings/2fa')
-@login_required
-def settings_2fa():
-    """Manage 2FA settings."""
-    user = get_logged_in_user()
-    return render_template('two_factor_setup.html', user=user)
-
-@app.route('/settings/2fa/email', methods=['POST'])
-@login_required
-def setup_2fa_email():
-    """Enable Email 2FA."""
-    user = get_logged_in_user()
-    users_col.update_one(
-        {'_id': user['_id']},
-        {'$set': {'two_factor_enabled': True, 'two_factor_method': 'email'}}
-    )
-    flash('Email 2FA has been enabled.', 'success')
-    return redirect(url_for('settings_2fa'))
-
-@app.route('/settings/2fa/totp')
-@login_required
-def setup_2fa_totp():
-    """Show TOTP setup page (QR code)."""
-    user = get_logged_in_user()
-    
-    # Ensure secret exists
-    if not user.get('totp_secret'):
-        secret = pyotp.random_base32()
-        users_col.update_one({'_id': user['_id']}, {'$set': {'totp_secret': secret}})
-        user['totp_secret'] = secret
-
-    totp = pyotp.TOTP(user['totp_secret'])
-    otpauth_uri = totp.provisioning_uri(name=user.get('email', user['username']), issuer_name='CanteenOs')
-    qr_uri = generate_qr_data_uri(otpauth_uri)
-    
-    return render_template('totp_setup.html', qr_uri=qr_uri, totp_secret=user['totp_secret'])
-
-@app.route('/settings/2fa/verify_totp', methods=['POST'])
-@login_required
-def verify_totp_setup():
-    """Verify and enable TOTP."""
-    user = get_logged_in_user()
-    totp_code = request.form.get('totp_code', '').strip()
-    
-    if user.get('totp_secret'):
-        totp = pyotp.TOTP(user['totp_secret'])
-        if totp.verify(totp_code, valid_window=1):
-            users_col.update_one(
-                {'_id': user['_id']},
-                {'$set': {'two_factor_enabled': True, 'two_factor_method': 'totp'}}
-            )
-            flash('Authenticator 2FA enabled successfully!', 'success')
-            return redirect(url_for('settings_2fa'))
-    
-    flash('Invalid authenticator code. Please try again.', 'danger')
-    return redirect(url_for('setup_2fa_totp'))
-
-@app.route('/settings/2fa/disable', methods=['POST'])
-@login_required
-def disable_2fa():
-    """Disable 2FA."""
-    user = get_logged_in_user()
-    users_col.update_one(
-        {'_id': user['_id']},
-        {'$set': {'two_factor_enabled': False, 'two_factor_method': None}}
-    )
-    flash('Two-Factor Authentication disabled.', 'warning')
-    return redirect(url_for('settings_2fa'))
 
 @app.route('/logout')
 def logout():
     """Logout and clear session."""
     session.pop('username', None)
     session.pop('active_organization_id', None)
-    session.pop('remember_device_opt_in', None)
-    clear_pending_mfa_session()
     resp = redirect(url_for('login'))
-    resp = clear_remember_device_cookie(resp)
     flash('You have been logged out.', 'info')
     return resp
+
 
 # ==================== USER ROUTES ====================
 
