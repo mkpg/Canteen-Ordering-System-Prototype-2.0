@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify Login - CanteenOs</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <style>
+        body {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+        }
+
+        .verification-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            padding: 3rem;
+            max-width: 480px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 25px 80px rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(10px);
+        }
+
+        .email-icon {
+            width: 100px;
+            height: 100px;
+            background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 2rem;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        .email-icon svg {
+            width: 50px;
+            height: 50px;
+            fill: #1a1a2e;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                transform: scale(1);
+                box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.4);
+            }
+
+            50% {
+                transform: scale(1.05);
+                box-shadow: 0 0 30px 10px rgba(74, 222, 128, 0.2);
+            }
+        }
+
+        .verification-number {
+            font-size: 4rem;
+            font-weight: 800;
+            color: #4ade80;
+            background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin: 2rem 0;
+            letter-spacing: 0.1em;
+            text-shadow: 0 0 30px rgba(74, 222, 128, 0.3);
+        }
+
+        .timer {
+            font-size: 1.5rem;
+            color: #a1a1aa;
+            margin-bottom: 1rem;
+        }
+
+        .timer-value {
+            color: #4ade80;
+            font-weight: 600;
+        }
+
+        .status-text {
+            color: #e5e5e5;
+            font-size: 1.1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .spinner {
+            width: 24px;
+            height: 24px;
+            border: 3px solid rgba(74, 222, 128, 0.2);
+            border-top-color: #4ade80;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            vertical-align: middle;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .hint-box {
+            background: rgba(74, 222, 128, 0.1);
+            border: 1px solid rgba(74, 222, 128, 0.3);
+            border-radius: 12px;
+            padding: 1rem;
+            margin-top: 2rem;
+        }
+
+        .hint-box p {
+            margin: 0;
+            color: #a1a1aa;
+            font-size: 0.9rem;
+        }
+
+        .cancel-link {
+            color: #ef4444;
+            text-decoration: none;
+            font-size: 0.9rem;
+            margin-top: 1.5rem;
+            display: inline-block;
+        }
+
+        .cancel-link:hover {
+            color: #dc2626;
+            text-decoration: underline;
+        }
+
+        .status-approved {
+            color: #4ade80 !important;
+        }
+
+        .status-denied {
+            color: #ef4444 !important;
+        }
+
+        .status-expired {
+            color: #f59e0b !important;
+        }
+    </style>
+</head>
+
+<body>
+    {% include 'icons.html' %}
+
+    <div class="verification-card fade-in">
+        <div class="email-icon">
+            <svg viewBox="0 0 24 24">
+                <path
+                    d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" />
+            </svg>
+        </div>
+
+        <h2 class="text-white mb-3">Check Your Email</h2>
+        <p class="status-text">
+            <span class="spinner" id="loadingSpinner"></span>
+            <span id="statusMessage">We sent a verification email to {{ user.email }}</span>
+        </p>
+
+        <div class="hint-box mb-4">
+            <p><strong style="color: #4ade80;">📧 Click a button in the email to verify</strong></p>
+            <p class="mt-2">Or click the number below in your email:</p>
+        </div>
+
+        <div class="verification-number" id="correctNumber">{{ correct_number }}</div>
+
+        <div class="timer">
+            <span>Expires in: </span>
+            <span class="timer-value" id="countdown">10:00</span>
+        </div>
+
+        <a href="{{ url_for('login') }}" class="cancel-link">Cancel and return to login</a>
+    </div>
+
+    <script>
+        const token = '{{ pending.token }}';
+        let countdownInterval;
+        let pollInterval;
+
+        // Calculate initial remaining time
+        const expiresAt = new Date('{{ pending.expires_at.isoformat() }}');
+
+        function updateCountdown() {
+            const now = new Date();
+            const remaining = Math.max(0, Math.floor((expiresAt - now) / 1000));
+
+            if (remaining <= 0) {
+                document.getElementById('countdown').textContent = 'Expired';
+                document.getElementById('statusMessage').textContent = 'Verification request expired';
+                document.getElementById('statusMessage').classList.add('status-expired');
+                document.getElementById('loadingSpinner').style.display = 'none';
+                clearInterval(countdownInterval);
+                clearInterval(pollInterval);
+                setTimeout(() => window.location.href = '{{ url_for("login") }}', 2000);
+                return;
+            }
+
+            const minutes = Math.floor(remaining / 60);
+            const seconds = remaining % 60;
+            document.getElementById('countdown').textContent =
+                `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        function checkStatus() {
+            fetch(`/2fa/status/${token}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'approved') {
+                        document.getElementById('statusMessage').textContent = 'Login approved! Redirecting...';
+                        document.getElementById('statusMessage').classList.add('status-approved');
+                        document.getElementById('loadingSpinner').style.display = 'none';
+                        clearInterval(countdownInterval);
+                        clearInterval(pollInterval);
+
+                        // Redirect to complete login
+                        setTimeout(() => {
+                            window.location.href = `/2fa/complete/${token}`;
+                        }, 1000);
+                    } else if (data.status === 'denied') {
+                        document.getElementById('statusMessage').textContent = 'Login was denied';
+                        document.getElementById('statusMessage').classList.add('status-denied');
+                        document.getElementById('loadingSpinner').style.display = 'none';
+                        clearInterval(countdownInterval);
+                        clearInterval(pollInterval);
+                        setTimeout(() => window.location.href = data.redirect, 2000);
+                    } else if (data.status === 'expired') {
+                        document.getElementById('statusMessage').textContent = 'Request expired';
+                        document.getElementById('statusMessage').classList.add('status-expired');
+                        document.getElementById('loadingSpinner').style.display = 'none';
+                        clearInterval(countdownInterval);
+                        clearInterval(pollInterval);
+                        setTimeout(() => window.location.href = data.redirect, 2000);
+                    }
+                })
+                .catch(err => console.error('Poll error:', err));
+        }
+
+        // Start countdown
+        updateCountdown();
+        countdownInterval = setInterval(updateCountdown, 1000);
+
+        // Poll for status every 3 seconds
+        pollInterval = setInterval(checkStatus, 3000);
+
+        // Initial check
+        checkStatus();
+    </script>
+</body>
+
+</html>

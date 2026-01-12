@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login Denied - CanteenOs</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <style>
+        body {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+        }
+
+        .result-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 24px;
+            padding: 3rem;
+            max-width: 450px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 25px 80px rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(10px);
+        }
+
+        .denied-icon {
+            width: 120px;
+            height: 120px;
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 2rem;
+            animation: shake 0.5s ease-out;
+        }
+
+        @keyframes shake {
+
+            0%,
+            100% {
+                transform: translateX(0);
+            }
+
+            20% {
+                transform: translateX(-10px);
+            }
+
+            40% {
+                transform: translateX(10px);
+            }
+
+            60% {
+                transform: translateX(-10px);
+            }
+
+            80% {
+                transform: translateX(10px);
+            }
+        }
+
+        .denied-icon svg {
+            width: 60px;
+            height: 60px;
+            fill: white;
+        }
+
+        h2 {
+            color: #ef4444;
+            margin-bottom: 1rem;
+        }
+
+        p {
+            color: #a1a1aa;
+            font-size: 1.1rem;
+        }
+
+        .warning-box {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 12px;
+            padding: 1rem;
+            margin-top: 2rem;
+        }
+
+        .warning-box p {
+            margin: 0;
+            color: #fca5a5;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="result-card fade-in">
+        <div class="denied-icon">
+            <svg viewBox="0 0 24 24">
+                <path
+                    d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+            </svg>
+        </div>
+
+        {% if wrong_number %}
+        <h2>Wrong Number! ✗</h2>
+        <p>The number you clicked doesn't match the one shown on the login screen.</p>
+        {% else %}
+        <h2>Login Denied ✗</h2>
+        <p>This login attempt has been blocked.</p>
+        {% endif %}
+
+        <div class="warning-box">
+            <p>
+                {% if wrong_number %}
+                ⚠️ If this wasn't you, your account may be at risk. Consider changing your password.
+                {% else %}
+                🔒 The login attempt has been blocked. If you didn't request this, your password may have been
+                compromised.
+                {% endif %}
+            </p>
+        </div>
+    </div>
+</body>
+
+</html>

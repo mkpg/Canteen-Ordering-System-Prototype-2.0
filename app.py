@@ -66,6 +66,7 @@ users_col = db['users']
 feedback_col = db['feedback']
 orders_col = db['orders']
 organizations_col = db['organizations']
+pending_logins_col = db['pending_logins']  # For email-based 2FA
 
 # GridFS for storing uploaded images in MongoDB
 fs = GridFS(db, collection='food_images')
@@ -134,6 +135,8 @@ db.menu_items.create_index('category')
 db.menu_items.create_index('is_available')
 db.menu_items.create_index([('organization_id', 1), ('is_available', 1)])  # Org-scoped menu
 organizations_col.create_index('is_active')
+pending_logins_col.create_index('token', unique=True)
+pending_logins_col.create_index('expires_at')  # For cleanup
 
 # Flask-Mail Configuration (credentials from environment)
 app.config.update(
@@ -147,6 +150,148 @@ mail = Mail(app)
 
 # Token serializer for reset links
 serializer = URLSafeTimedSerializer(app.secret_key)
+
+# ==================== 2FA HELPER FUNCTIONS ====================
+
+def generate_2fa_token():
+    """Generate a secure random token for 2FA email links."""
+    return ''.join(random.choices(string.ascii_letters + string.digits, k=32))
+
+def generate_2fa_numbers():
+    """Generate 3 unique random numbers for 2FA verification (10-99)."""
+    numbers = random.sample(range(10, 100), 3)
+    correct_index = random.randint(0, 2)
+    return numbers, numbers[correct_index]
+
+def send_2fa_email(user, pending_login):
+    """Send 2FA verification email with approve/deny buttons and number options."""
+    approve_url = url_for('twofa_approve', token=pending_login['token'], _external=True)
+    deny_url = url_for('twofa_deny', token=pending_login['token'], _external=True)
+    
+    # Generate URLs for each number option
+    number_urls = []
+    for num in pending_login['numbers']:
+        url = url_for('twofa_verify_number', token=pending_login['token'], number=num, _external=True)
+        number_urls.append((num, url))
+    
+    # HTML Email with styled buttons
+    html_body = f'''
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="font-family: 'Segoe UI', Arial, sans-serif; background-color: #f4f4f5; margin: 0; padding: 20px;">
+        <div style="max-width: 500px; margin: 0 auto; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); border-radius: 16px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
+            <!-- Header -->
+            <div style="background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%); padding: 30px; text-align: center;">
+                <h1 style="margin: 0; color: #1a1a2e; font-size: 24px;">🔐 Login Verification</h1>
+                <p style="margin: 10px 0 0; color: #166534; font-size: 14px;">CanteenOs Security</p>
+            </div>
+            
+            <!-- Content -->
+            <div style="padding: 30px; color: #e5e5e5;">
+                <p style="font-size: 16px; margin-bottom: 20px;">Hi <strong style="color: #4ade80;">{user['first_name']}</strong>,</p>
+                
+                <p style="font-size: 15px; line-height: 1.6;">Someone is trying to sign in to your CanteenOs account. If this was you, approve the login below.</p>
+                
+                <!-- Login Details Box -->
+                <div style="background: rgba(255,255,255,0.1); border-radius: 12px; padding: 20px; margin: 25px 0; border-left: 4px solid #4ade80;">
+                    <p style="margin: 0 0 8px; font-size: 14px;"><strong>📅 Time:</strong> {pending_login['created_at'].strftime('%B %d, %Y at %I:%M %p')}</p>
+                    <p style="margin: 0; font-size: 14px;"><strong>🌐 IP Address:</strong> {pending_login.get('ip_address', 'Unknown')}</p>
+                </div>
+                
+                <!-- Option 1: Yes/No Buttons -->
+                <p style="text-align: center; color: #a1a1aa; font-size: 13px; margin-bottom: 15px;">Was this you?</p>
+                
+                <div style="text-align: center; margin-bottom: 30px;">
+                    <a href="{approve_url}" style="display: inline-block; background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%); color: #1a1a2e; text-decoration: none; padding: 14px 40px; border-radius: 8px; font-weight: bold; font-size: 16px; margin: 0 10px;">✓ Yes, it's me</a>
+                    <a href="{deny_url}" style="display: inline-block; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; text-decoration: none; padding: 14px 40px; border-radius: 8px; font-weight: bold; font-size: 16px; margin: 0 10px;">✗ No, block this</a>
+                </div>
+                
+                <!-- Divider -->
+                <div style="border-top: 1px solid rgba(255,255,255,0.1); margin: 25px 0;"></div>
+                
+                <!-- Option 2: Number Verification -->
+                <p style="text-align: center; color: #a1a1aa; font-size: 13px; margin-bottom: 15px;">Or click the number shown on your screen:</p>
+                
+                <div style="text-align: center;">
+                    {''.join([f'<a href="{url}" style="display: inline-block; background: rgba(255,255,255,0.1); color: #e5e5e5; text-decoration: none; padding: 15px 25px; border-radius: 10px; font-weight: bold; font-size: 24px; margin: 0 8px; border: 2px solid rgba(74,222,128,0.3);">{num}</a>' for num, url in number_urls])}
+                </div>
+            </div>
+            
+            <!-- Footer -->
+            <div style="background: rgba(0,0,0,0.2); padding: 20px; text-align: center;">
+                <p style="margin: 0; color: #71717a; font-size: 12px;">⚠️ If you didn't request this login, click "No, block this" immediately.</p>
+                <p style="margin: 10px 0 0; color: #52525b; font-size: 11px;">This link expires in 10 minutes.</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    '''
+    
+    # Plain text fallback
+    text_body = f'''
+Hi {user['first_name']},
+
+Someone is trying to sign in to your CanteenOs account.
+
+Time: {pending_login['created_at'].strftime('%B %d, %Y at %I:%M %p')}
+IP Address: {pending_login.get('ip_address', 'Unknown')}
+
+To APPROVE this login, visit: {approve_url}
+To DENY this login, visit: {deny_url}
+
+Or verify by clicking one of these numbers (match it with the number on your screen):
+{', '.join([f'{num}: {url}' for num, url in number_urls])}
+
+This link expires in 10 minutes.
+
+If you didn't request this, click the deny link immediately.
+
+- CanteenOs Team
+'''
+    
+    msg = Message(
+        "🔐 Login Verification Required - CanteenOs",
+        sender=app.config['MAIL_USERNAME'],
+        recipients=[user['email']],
+        body=text_body,
+        html=html_body
+    )
+    
+    try:
+        mail.send(msg)
+        return True
+    except Exception as e:
+        print(f"2FA Email error: {e}")
+        return False
+
+def create_pending_login(user, organization_id_str):
+    """Create a pending 2FA login request."""
+    token = generate_2fa_token()
+    numbers, correct_number = generate_2fa_numbers()
+    
+    pending = {
+        'username': user['username'],
+        'organization_id': organization_id_str,
+        'token': token,
+        'numbers': numbers,
+        'correct_number': correct_number,
+        'status': 'pending',
+        'created_at': datetime.now(),
+        'expires_at': datetime.now() + timedelta(minutes=10),
+        'ip_address': request.remote_addr or 'Unknown',
+        'user_agent': request.user_agent.string[:200] if request.user_agent else 'Unknown'
+    }
+    
+    pending_logins_col.insert_one(pending)
+    return pending
+
+def cleanup_expired_logins():
+    """Remove expired pending logins."""
+    pending_logins_col.delete_many({'expires_at': {'$lt': datetime.now()}})
 
 # ==================== VALIDATION HELPERS ====================
 
@@ -417,7 +562,7 @@ def about():
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    """User login page with organization selection."""
+    """User login page with organization selection and 2FA support."""
     # If already logged in, redirect to menu
     if 'username' in session:
         flash('You are already logged in. Logout first to switch organization.', 'info')
@@ -429,11 +574,12 @@ def login():
         username = request.form['username'].strip()
         password = request.form['password']
         organization_id_str = request.form.get('organization_id', '')
+        remember_device = request.form.get('remember_device') == 'on'
         
         user = users_col.find_one({'username': username})
         
         if user and check_password_hash(user['password'], password):
-            # Core admin doesn't need to select organization
+            # Core admin doesn't need to select organization or 2FA
             if user.get('role') == 'core_admin':
                 complete_login(user, None)
                 resp = redirect(url_for('core_admin_dashboard'))
@@ -466,9 +612,38 @@ def login():
                         flash('This organization is not active.', 'danger')
                         return render_template('login.html', organizations=organizations)
                     
-                    # Direct Login
+                    # Check if 2FA is enabled for user
+                    if user.get('two_factor_enabled', False):
+                        # Check for trusted device cookie
+                        trusted = verify_remember_device_cookie()
+                        if trusted and trusted.get('u') == username:
+                            # Trusted device - skip 2FA
+                            complete_login(user, str(selected_org_id))
+                            resp = redirect(url_for('menu'))
+                            flash(f'Welcome back, {user["first_name"]}!', 'success')
+                            return resp
+                        
+                        # Create pending login and send 2FA email
+                        cleanup_expired_logins()  # Clean up old requests
+                        pending = create_pending_login(user, str(selected_org_id))
+                        pending['remember_device'] = remember_device  # Store for later
+                        pending_logins_col.update_one(
+                            {'token': pending['token']},
+                            {'$set': {'remember_device': remember_device}}
+                        )
+                        
+                        if send_2fa_email(user, pending):
+                            flash('Check your email to verify this login attempt.', 'info')
+                            return redirect(url_for('twofa_waiting', token=pending['token']))
+                        else:
+                            flash('Failed to send verification email. Please try again.', 'danger')
+                            return render_template('login.html', organizations=organizations)
+                    
+                    # No 2FA - Direct Login
                     complete_login(user, str(selected_org_id))
                     resp = redirect(url_for('menu'))
+                    if remember_device:
+                        resp = set_remember_device_cookie(resp, username, selected_org_id)
                     flash(f'Welcome back, {user["first_name"]}!', 'success')
                     return resp
                 except Exception as e:
@@ -476,9 +651,27 @@ def login():
                     print(f"Login org error: {e}")
                     return render_template('login.html', organizations=organizations)
             else:
-                # No organizations in system, just log in
+                # No organizations in system
+                if user.get('two_factor_enabled', False):
+                    trusted = verify_remember_device_cookie()
+                    if not trusted or trusted.get('u') != username:
+                        cleanup_expired_logins()
+                        pending = create_pending_login(user, None)
+                        pending_logins_col.update_one(
+                            {'token': pending['token']},
+                            {'$set': {'remember_device': remember_device}}
+                        )
+                        if send_2fa_email(user, pending):
+                            flash('Check your email to verify this login attempt.', 'info')
+                            return redirect(url_for('twofa_waiting', token=pending['token']))
+                        else:
+                            flash('Failed to send verification email. Please try again.', 'danger')
+                            return render_template('login.html', organizations=organizations)
+                
                 complete_login(user, None)
                 resp = redirect(url_for('menu'))
+                if remember_device:
+                    resp = set_remember_device_cookie(resp, username, None)
                 flash(f'Welcome back, {user["first_name"]}!', 'success')
                 return resp
         else:
@@ -686,6 +879,197 @@ def logout():
     resp = redirect(url_for('login'))
     flash('You have been logged out.', 'info')
     return resp
+
+
+# ==================== 2FA ROUTES ====================
+
+@app.route('/2fa/waiting/<token>')
+def twofa_waiting(token):
+    """Show waiting page while user checks email for 2FA."""
+    pending = pending_logins_col.find_one({'token': token})
+    
+    if not pending:
+        flash('Invalid or expired verification request.', 'danger')
+        return redirect(url_for('login'))
+    
+    if pending['status'] != 'pending':
+        if pending['status'] == 'approved':
+            flash('Login already approved. Please try logging in again.', 'info')
+        else:
+            flash('Login was denied or has expired.', 'warning')
+        return redirect(url_for('login'))
+    
+    if pending['expires_at'] < datetime.now():
+        pending_logins_col.update_one({'token': token}, {'$set': {'status': 'expired'}})
+        flash('Verification request has expired. Please try again.', 'warning')
+        return redirect(url_for('login'))
+    
+    user = users_col.find_one({'username': pending['username']})
+    
+    return render_template('2fa_waiting.html', 
+                           pending=pending, 
+                           user=user,
+                           correct_number=pending['correct_number'])
+
+@app.route('/2fa/approve/<token>')
+def twofa_approve(token):
+    """Handle 2FA approval from email link."""
+    pending = pending_logins_col.find_one({'token': token})
+    
+    if not pending:
+        flash('Invalid or expired verification request.', 'danger')
+        return redirect(url_for('login'))
+    
+    if pending['status'] != 'pending':
+        flash('This verification request has already been processed.', 'warning')
+        return redirect(url_for('login'))
+    
+    if pending['expires_at'] < datetime.now():
+        pending_logins_col.update_one({'token': token}, {'$set': {'status': 'expired'}})
+        flash('Verification request has expired.', 'warning')
+        return redirect(url_for('login'))
+    
+    # Approve the login
+    pending_logins_col.update_one({'token': token}, {'$set': {'status': 'approved'}})
+    
+    return render_template('2fa_approved.html')
+
+@app.route('/2fa/deny/<token>')
+def twofa_deny(token):
+    """Handle 2FA denial from email link."""
+    pending = pending_logins_col.find_one({'token': token})
+    
+    if not pending:
+        flash('Invalid or expired verification request.', 'danger')
+        return redirect(url_for('login'))
+    
+    if pending['status'] != 'pending':
+        flash('This verification request has already been processed.', 'warning')
+        return redirect(url_for('login'))
+    
+    # Deny the login
+    pending_logins_col.update_one({'token': token}, {'$set': {'status': 'denied'}})
+    
+    return render_template('2fa_denied.html')
+
+@app.route('/2fa/verify/<token>/<int:number>')
+def twofa_verify_number(token, number):
+    """Handle number verification from email link."""
+    pending = pending_logins_col.find_one({'token': token})
+    
+    if not pending:
+        flash('Invalid or expired verification request.', 'danger')
+        return redirect(url_for('login'))
+    
+    if pending['status'] != 'pending':
+        flash('This verification request has already been processed.', 'warning')
+        return redirect(url_for('login'))
+    
+    if pending['expires_at'] < datetime.now():
+        pending_logins_col.update_one({'token': token}, {'$set': {'status': 'expired'}})
+        flash('Verification request has expired.', 'warning')
+        return redirect(url_for('login'))
+    
+    # Check if number is correct
+    if number == pending['correct_number']:
+        pending_logins_col.update_one({'token': token}, {'$set': {'status': 'approved'}})
+        return render_template('2fa_approved.html')
+    else:
+        pending_logins_col.update_one({'token': token}, {'$set': {'status': 'denied'}})
+        return render_template('2fa_denied.html', wrong_number=True)
+
+@app.route('/2fa/status/<token>')
+def twofa_status(token):
+    """AJAX endpoint to check 2FA status for polling."""
+    pending = pending_logins_col.find_one({'token': token})
+    
+    if not pending:
+        return {'status': 'expired', 'redirect': url_for('login')}
+    
+    if pending['expires_at'] < datetime.now():
+        pending_logins_col.update_one({'token': token}, {'$set': {'status': 'expired'}})
+        return {'status': 'expired', 'redirect': url_for('login')}
+    
+    if pending['status'] == 'approved':
+        # Complete the login in session
+        user = users_col.find_one({'username': pending['username']})
+        if user:
+            complete_login(user, pending.get('organization_id'))
+            # Build redirect URL
+            if user.get('role') == 'core_admin':
+                redirect_url = url_for('core_admin_dashboard')
+            else:
+                redirect_url = url_for('menu')
+            return {
+                'status': 'approved', 
+                'redirect': redirect_url,
+                'remember_device': pending.get('remember_device', False)
+            }
+        return {'status': 'error', 'redirect': url_for('login')}
+    
+    if pending['status'] == 'denied':
+        return {'status': 'denied', 'redirect': url_for('login')}
+    
+    # Calculate remaining time
+    remaining = (pending['expires_at'] - datetime.now()).total_seconds()
+    return {'status': 'pending', 'remaining': int(remaining)}
+
+@app.route('/2fa/complete/<token>')
+def twofa_complete(token):
+    """Complete login after 2FA approval (called from waiting page)."""
+    pending = pending_logins_col.find_one({'token': token})
+    
+    if not pending or pending['status'] != 'approved':
+        flash('Invalid verification or not yet approved.', 'danger')
+        return redirect(url_for('login'))
+    
+    user = users_col.find_one({'username': pending['username']})
+    if not user:
+        flash('User not found.', 'danger')
+        return redirect(url_for('login'))
+    
+    # Complete login
+    complete_login(user, pending.get('organization_id'))
+    
+    # Delete the pending login
+    pending_logins_col.delete_one({'token': token})
+    
+    # Redirect based on role
+    if user.get('role') == 'core_admin':
+        resp = redirect(url_for('core_admin_dashboard'))
+    else:
+        resp = redirect(url_for('menu'))
+    
+    # Set remember device cookie if requested
+    if pending.get('remember_device'):
+        resp = set_remember_device_cookie(resp, user['username'], pending.get('organization_id'))
+    
+    flash(f'Welcome back, {user["first_name"]}!', 'success')
+    return resp
+
+@app.route('/2fa/toggle', methods=['POST'])
+@login_required
+def twofa_toggle():
+    """Toggle 2FA on/off for the current user."""
+    user = get_logged_in_user()
+    
+    if not user:
+        return {'success': False, 'error': 'Not logged in'}, 401
+    
+    current_state = user.get('two_factor_enabled', False)
+    new_state = not current_state
+    
+    users_col.update_one(
+        {'username': user['username']},
+        {'$set': {'two_factor_enabled': new_state}}
+    )
+    
+    if new_state:
+        flash('Two-Factor Authentication has been enabled.', 'success')
+    else:
+        flash('Two-Factor Authentication has been disabled.', 'info')
+    
+    return redirect(url_for('profile'))
 
 
 # ==================== USER ROUTES ====================
