@@ -48,19 +48,20 @@ app.config.update(
 
 # MongoDB setup with SSL certificate for Atlas - OPTIMIZED for performance
 MONGO_URI = os.getenv('MONGO_URI', 'mongodb://localhost:27017/')
-client = MongoClient(
-    MONGO_URI, 
-    tlsCAFile=certifi.where(),
-    # Connection pooling for better performance
-    maxPoolSize=50,
-    minPoolSize=5,
-    # Reduce timeouts for faster failure detection
-    serverSelectionTimeoutMS=5000,
-    connectTimeoutMS=10000,
-    socketTimeoutMS=20000,
-    # Keep connections alive
-    maxIdleTimeMS=45000
-)
+client_kwargs = {
+    'maxPoolSize': 50,
+    'minPoolSize': 5,
+    'serverSelectionTimeoutMS': 5000,
+    'connectTimeoutMS': 10000,
+    'socketTimeoutMS': 20000,
+    'maxIdleTimeMS': 45000
+}
+
+# Only require SSL/TLS certificates if connecting to MongoDB Atlas cloud
+if 'mongodb+srv://' in MONGO_URI:
+    client_kwargs['tlsCAFile'] = certifi.where()
+
+client = MongoClient(MONGO_URI, **client_kwargs)
 db = client['canteen_app']
 users_col = db['users']
 feedback_col = db['feedback']
@@ -1692,6 +1693,11 @@ def admin_orders():
     query = {'status': {'$ne': 'pending'}}
     if status_filter != 'all':
         query['status'] = status_filter
+        
+    if user.get('role') != 'core_admin':
+        org_id = user.get('organization_id')
+        if org_id:
+            query['organization_id'] = org_id
     
     orders = list(orders_col.find(query).sort('order_time', -1))
     
@@ -1759,7 +1765,13 @@ def admin_users():
     """Admin user management."""
     user = get_logged_in_user()
     
-    all_users = list(users_col.find().sort('created_at', -1))
+    query = {}
+    if user.get('role') != 'core_admin':
+        org_id = user.get('organization_id')
+        if org_id:
+            query['organization_id'] = org_id
+            
+    all_users = list(users_col.find(query).sort('created_at', -1))
     
     return render_template(
         'admin_users.html',
@@ -2022,8 +2034,14 @@ def admin_manage_menu():
     """Admin page to manage all menu items."""
     user = get_logged_in_user()
     
+    query = {}
+    if user.get('role') != 'core_admin':
+        org_id = user.get('organization_id')
+        if org_id:
+            query['organization_id'] = org_id
+            
     # Get all menu items
-    menu_items = list(db.menu_items.find().sort('created_at', -1))
+    menu_items = list(db.menu_items.find(query).sort('created_at', -1))
     
     return render_template(
         'admin_manage_menu.html',
