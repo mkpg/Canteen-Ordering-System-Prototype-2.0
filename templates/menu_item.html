@@ -115,6 +115,20 @@
                         </div>
                         <p class="food-description">{{ item.description }}</p>
                         <div class="food-price food-price-desktop">₹{{ item.price }}</div>
+                        
+                        {% if item.track_stock %}
+                            {% if item.stock <= 0 %}
+                                <div class="text-danger small font-weight-bold mt-2 mb-1" style="font-size: 0.8rem;">
+                                    <svg style="width: 12px; height: 12px; margin-right: 2px; vertical-align: -1px;" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line>
+                                    </svg> Unavailable (Out of Stock)
+                                </div>
+                            {% elif item.stock <= item.low_stock_threshold %}
+                                <div class="text-warning small font-weight-bold mt-2 mb-1" style="font-size: 0.8rem;">
+                                    <svg style="width: 12px; height: 12px; margin-right: 2px; vertical-align: -1px;"><use href="#icon-fire"/></svg> Going to over soon! Only {{ item.stock }} left
+                                </div>
+                            {% endif %}
+                        {% endif %}
 
                         <!-- Mobile: Tap to expand hint -->
                         <div class="mobile-tap-hint">
@@ -132,9 +146,9 @@
                                             <use href="#icon-package" />
                                         </svg></span> Quantity</label>
                                 <div class="qty-buttons">
-                                    <button type="button" class="qty-btn minus" onclick="changeQty(this, -1)">−</button>
-                                    <input type="number" name="quantity" min="1" value="1" class="qty-input" readonly>
-                                    <button type="button" class="qty-btn plus" onclick="changeQty(this, 1)">+</button>
+                                    <button type="button" class="qty-btn minus" onclick="changeQty(this, -1, {{ item.stock if item.track_stock else 20 }})">−</button>
+                                    <input type="number" name="quantity" min="1" max="{{ item.stock if item.track_stock else 20 }}" value="1" class="qty-input" readonly>
+                                    <button type="button" class="qty-btn plus" onclick="changeQty(this, 1, {{ item.stock if item.track_stock else 20 }})">+</button>
                                 </div>
                             </div>
 
@@ -148,11 +162,16 @@
 
                             <input type="hidden" name="productName" value="{{ item.name }}">
                             <input type="hidden" name="price" value="{{ item.price }}">
-                            <button type="submit" class="btn btn-add-cart">
-                                <span class="btn-icon"><svg>
-                                        <use href="#icon-cart" />
-                                    </svg></span> Add to Cart
+                            
+                            {% if item.track_stock and item.stock <= 0 %}
+                            <button type="button" class="btn btn-secondary disabled mt-2" style="cursor: not-allowed; width: 100%; border-radius: 8px; font-weight: 600; padding: 0.5rem;">
+                                <span class="btn-icon"><svg style="width: 1.1rem; height: 1.1rem;"><use href="#icon-ban"/></svg></span> Out of Stock
                             </button>
+                            {% else %}
+                            <button type="submit" class="btn btn-add-cart">
+                                <span class="btn-icon"><svg><use href="#icon-cart"/></svg></span> Add to Cart
+                            </button>
+                            {% endif %}
                         </form>
                     </div>
                 </div>
@@ -228,11 +247,19 @@
 
     <script>
         // Quantity +/- buttons
-        function changeQty(btn, delta) {
+        function changeQty(btn, delta, maxQty = 20) {
             const input = btn.parentElement.querySelector('.qty-input');
             let val = parseInt(input.value) + delta;
+            
+            // Cannot be less than 1 or greater than maxQty
             if (val < 1) val = 1;
-            if (val > 20) val = 20;
+            if (maxQty > 0 && val > maxQty) {
+                val = maxQty;
+                // Optional: flash red to indicate max
+                input.style.color = '#dc2626';
+                setTimeout(() => input.style.color = '', 300);
+            }
+            
             input.value = val;
         }
 

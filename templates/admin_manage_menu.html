@@ -56,7 +56,19 @@
                         <p class="text-muted small mb-3">
                             <strong>Category:</strong> {{ item.category | capitalize }}<br>
                             {% if item.customization_hint %}
-                            <strong>Hint:</strong> {{ item.customization_hint }}
+                            <strong>Hint:</strong> {{ item.customization_hint }}<br>
+                            {% endif %}
+                            {% if item.track_stock %}
+                            <strong>Stock:</strong> 
+                            {% if item.stock <= 0 %}
+                            <span class="text-danger font-weight-bold">Out of Stock (0)</span>
+                            {% elif item.stock <= item.low_stock_threshold %}
+                            <span class="text-warning font-weight-bold">Low Stock ({{ item.stock }})</span>
+                            {% else %}
+                            <span class="text-success">{{ item.stock }} available</span>
+                            {% endif %}
+                            {% else %}
+                            <strong>Stock:</strong> Unlimited
                             {% endif %}
                         </p>
                         <div class="action-buttons d-flex flex-wrap gap-2">
@@ -65,7 +77,8 @@
                                 data-target="#editFoodModal" data-id="{{ item._id }}" data-name="{{ item.name }}"
                                 data-description="{{ item.description }}" data-price="{{ item.price }}"
                                 data-category="{{ item.category }}" data-image="{{ item.image_url }}"
-                                data-hint="{{ item.customization_hint }}">
+                                data-hint="{{ item.customization_hint }}" data-track="{{ item.track_stock|lower }}"
+                                data-stock="{{ item.stock|default(0) }}" data-thresh="{{ item.low_stock_threshold|default(5) }}">
                                 <svg style="width: 0.9rem; height: 0.9rem;">
                                     <use href="#icon-edit" />
                                 </svg> Edit
@@ -191,7 +204,7 @@
 
                             <!-- URL Input -->
                             <div id="addUrlInput2">
-                                <input type="url" class="form-control" id="foodImage2" name="image_url"
+                                <input type="text" class="form-control" id="foodImage2" name="image_url"
                                     placeholder="https://example.com/image.jpg">
                                 <small class="form-text text-muted">Enter a direct URL to the food image</small>
                             </div>
@@ -217,6 +230,31 @@
                             <input type="text" class="form-control" id="customizationHint2" name="customization_hint"
                                 placeholder="E.g., extra cheese, no onion">
                             <small class="form-text text-muted">Example customization shown to customers</small>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-12">
+                                <div class="form-group border p-3 rounded bg-light mb-0">
+                                    <div class="custom-control custom-switch ml-2" style="padding-left: 3rem;">
+                                        <input type="checkbox" class="custom-control-input" id="trackStock2" name="track_stock" onchange="document.getElementById('stockFields2').style.display = this.checked ? 'flex' : 'none'">
+                                        <label class="custom-control-label font-weight-bold text-primary" for="trackStock2" style="padding-top: 2px;">Enable Stock Tracking</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row" id="stockFields2" style="display: none;">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="foodStock2">Stock Quantity</label>
+                                    <input type="number" class="form-control" id="foodStock2" name="stock" min="0" value="0">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="foodThreshold2">Low Stock Alert Below</label>
+                                    <input type="number" class="form-control" id="foodThreshold2" name="low_stock_threshold" min="0" value="5">
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -312,7 +350,7 @@
 
                             <!-- URL Input for Edit -->
                             <div id="editUrlInput" style="display: none;">
-                                <input type="url" class="form-control" id="editFoodImage" name="image_url">
+                                <input type="text" class="form-control" id="editFoodImage" name="image_url">
                                 <small class="form-text text-muted">Enter a new URL for the food image</small>
                             </div>
 
@@ -337,6 +375,31 @@
                             <input type="text" class="form-control" id="editCustomizationHint"
                                 name="customization_hint">
                             <small class="form-text text-muted">Example customization shown to customers</small>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-12">
+                                <div class="form-group border p-3 rounded bg-light mb-0">
+                                    <div class="custom-control custom-switch ml-2" style="padding-left: 3rem;">
+                                        <input type="checkbox" class="custom-control-input" id="editTrackStock" name="track_stock" onchange="document.getElementById('editStockFields').style.display = this.checked ? 'flex' : 'none'">
+                                        <label class="custom-control-label font-weight-bold text-primary" for="editTrackStock" style="padding-top: 2px;">Enable Stock Tracking</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row" id="editStockFields" style="display: none;">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="editStock">Stock Quantity</label>
+                                    <input type="number" class="form-control" id="editStock" name="stock" min="0" value="0">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="editThreshold">Low Stock Alert Below</label>
+                                    <input type="number" class="form-control" id="editThreshold" name="low_stock_threshold" min="0" value="5">
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -365,6 +428,9 @@
             var category = button.data('category');
             var image = button.data('image');
             var hint = button.data('hint');
+            var track = button.data('track') === 'true' || button.data('track') === true;
+            var stock = button.data('stock');
+            var thresh = button.data('thresh');
 
             var modal = $(this);
             modal.find('#editFoodName').val(name);
@@ -373,6 +439,16 @@
             modal.find('#editFoodCategory').val(category);
             modal.find('#editFoodImage').val(image);
             modal.find('#editCustomizationHint').val(hint);
+            
+            modal.find('#editTrackStock').prop('checked', track);
+            modal.find('#editStock').val(stock || 0);
+            modal.find('#editThreshold').val(thresh || 5);
+            
+            if (track) {
+                modal.find('#editStockFields').css('display', 'flex');
+            } else {
+                modal.find('#editStockFields').css('display', 'none');
+            }
 
             // Show current image preview
             modal.find('#currentImagePreview img').attr('src', image);

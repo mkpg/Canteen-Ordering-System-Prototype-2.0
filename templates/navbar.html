@@ -121,3 +121,68 @@
     {% endif %}
     {% endwith %}
 </div>
+
+{% if is_admin and not is_core_admin %}
+<script>
+    let notifiedAlerts = new Set();
+    
+    // Request notification permission on load
+    if ("Notification" in window) {
+        if (Notification.permission !== "granted" && Notification.permission !== "denied") {
+            Notification.requestPermission();
+        }
+    }
+
+    function checkStockAlerts() {
+        fetch('/api/stock_alerts')
+            .then(res => res.json())
+            .then(data => {
+                if (data.alerts && data.alerts.length > 0) {
+                    data.alerts.forEach(alert => {
+                        // Only notify once per item threshold check
+                        if (!notifiedAlerts.has(alert.id)) {
+                            notifiedAlerts.add(alert.id);
+                            
+                            const msg = alert.stock <= 0 ? 
+                                `${alert.name} is completely out of stock!` : 
+                                `Low stock warning! ${alert.name} only has ${alert.stock} remaining.`;
+                                
+                            // Browser Push Notification (cross-tab visibility)
+                            if ("Notification" in window && Notification.permission === "granted") {
+                                new Notification("Stock Alert: " + alert.name, {
+                                    body: msg
+                                });
+                            }
+                            
+                            // Visual Toast / Alert 
+                            const alertDiv = document.createElement('div');
+                            alertDiv.className = `alert alert-${alert.stock <= 0 ? 'danger' : 'warning'} alert-dismissible fade show shadow-lg position-fixed`;
+                            alertDiv.style.bottom = '20px';
+                            alertDiv.style.right = '20px';
+                            alertDiv.style.zIndex = '9999';
+                            alertDiv.style.minWidth = '300px';
+                            alertDiv.innerHTML = `
+                                <strong>Stock Alert</strong><br>
+                                ${msg}
+                                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                                    <span aria-hidden="true">&times;</span>
+                                </button>
+                            `;
+                            document.body.appendChild(alertDiv);
+                            
+                            // Optional Chime
+                            const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+                            audio.volume = 0.5;
+                            audio.play().catch(e => {}); // Catch if browser blocks auto-play
+                        }
+                    });
+                }
+            })
+            .catch(err => console.error("Stock check failed"));
+    }
+
+    // Check immediately (after short delay), then every 30 seconds
+    setTimeout(checkStockAlerts, 2000);
+    setInterval(checkStockAlerts, 30000);
+</script>
+{% endif %}

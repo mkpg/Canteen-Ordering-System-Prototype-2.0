@@ -308,8 +308,18 @@ def validate_phone(phone):
     return re.match(pattern, phone.replace(' ', '').replace('-', '')) is not None
 
 def validate_password(password):
-    """Validate password strength (minimum 6 characters)."""
-    return len(password) >= 6
+    """Validate password strength (length 8+, uppercase, lowercase, number, special char)."""
+    if len(password) < 8:
+        return False, "Password must be at least 8 characters long."
+    if not re.search(r'[A-Z]', password):
+        return False, "Password must contain at least one uppercase letter."
+    if not re.search(r'[a-z]', password):
+        return False, "Password must contain at least one lowercase letter."
+    if not re.search(r'[0-9]', password):
+        return False, "Password must contain at least one number."
+    if not re.search(r'[^A-Za-z0-9]', password):
+        return False, "Password must contain at least one special character."
+    return True, ""
 
 # ==================== HELPER FUNCTIONS ====================
 
@@ -522,6 +532,10 @@ def seed_default_menu():
                 'created_at': datetime.now()
             }
         ]
+        for item in default_items:
+            item['track_stock'] = False
+            item['stock'] = 0
+            item['low_stock_threshold'] = 5
         db.menu_items.insert_many(default_items)
         print("✅ Seeded default menu items")
 
@@ -707,8 +721,9 @@ def register():
         if password != confirm_password:
             errors.append('Passwords do not match.')
         
-        if not validate_password(password):
-            errors.append('Password must be at least 6 characters.')
+        is_valid_pw, pw_msg = validate_password(password)
+        if not is_valid_pw:
+            errors.append(pw_msg)
         
         if not validate_email(email):
             errors.append('Invalid email format.')
@@ -854,8 +869,9 @@ def reset_password(token):
             flash('Passwords do not match.', 'danger')
             return render_template('reset_password.html', token=token)
         
-        if not validate_password(new_password):
-            flash('Password must be at least 6 characters.', 'danger')
+        is_valid_pw, pw_msg = validate_password(new_password)
+        if not is_valid_pw:
+            flash(pw_msg, 'danger')
             return render_template('reset_password.html', token=token)
         
         hashed_pw = generate_password_hash(new_password)
@@ -1130,6 +1146,18 @@ def order():
         if quantity <= 0:
             flash('Quantity must be greater than 0.', 'warning')
             return redirect(url_for('menu'))
+            
+        # Check stock availability
+        active_org_id = get_active_organization_id()
+        query = {'name': product_name}
+        if active_org_id:
+            query['organization_id'] = active_org_id
+            
+        menu_item = db.menu_items.find_one(query)
+        if menu_item and menu_item.get('track_stock', False):
+            if menu_item.get('stock', 0) < quantity:
+                flash(f'Sorry, only {menu_item.get("stock", 0)} left of {product_name}.', 'danger')
+                return redirect(url_for('menu'))
         
         total_price = round(quantity * price, 2)
         
@@ -1283,6 +1311,20 @@ def process_payment():
         'payment_type': payment_type
     }
     
+    # Decrement stock for tracked items
+    pending_orders = list(orders_col.find({'username': user['username'], 'status': 'pending'}))
+    for order in pending_orders:
+        query = {'name': order['product_name']}
+        if order.get('organization_id'):
+            query['organization_id'] = order['organization_id']
+            
+        item = db.menu_items.find_one(query)
+        if item and item.get('track_stock', False):
+            db.menu_items.update_one(
+                {'_id': item['_id']},
+                {'$inc': {'stock': -order['quantity']}}
+            )
+
     result = orders_col.update_many(
         {'username': user['username'], 'status': 'pending'},
         {'$set': update_data}
@@ -1564,8 +1606,9 @@ def change_password():
             flash('New passwords do not match.', 'danger')
             return render_template('change_password.html', logged_in_user=user['username'], is_admin=user.get('is_admin', False))
         
-        if not validate_password(new_password):
-            flash('Password must be at least 6 characters.', 'danger')
+        is_valid_pw, pw_msg = validate_password(new_password)
+        if not is_valid_pw:
+            flash(pw_msg, 'danger')
             return render_template('change_password.html', logged_in_user=user['username'], is_admin=user.get('is_admin', False))
         
         # Update password
@@ -1961,6 +2004,9 @@ def add_food_item():
         category = request.form.get('category', 'breakfast')
         image_url = request.form.get('image_url', '').strip()
         customization_hint = request.form.get('customization_hint', '').strip()
+        track_stock = request.form.get('track_stock') == 'on'
+        stock = int(request.form.get('stock', 0)) if track_stock else 0
+        low_stock_threshold = int(request.form.get('low_stock_threshold', 5)) if track_stock else 5
         image_source = request.form.get('image_source', 'url')  # 'url' or 'upload'
         
         final_image_url = ''
@@ -2016,6 +2062,9 @@ def add_food_item():
             'category': category,
             'image_url': final_image_url,
             'customization_hint': customization_hint,
+            'track_stock': track_stock,
+            'stock': stock,
+            'low_stock_threshold': low_stock_threshold,
             'is_available': True,
             'organization_id': org_id,
             'created_at': datetime.now()
@@ -2100,6 +2149,9 @@ def edit_food_item(food_id):
         category = request.form.get('category', 'breakfast')
         image_url = request.form.get('image_url', '').strip()
         customization_hint = request.form.get('customization_hint', '').strip()
+        track_stock = request.form.get('track_stock') == 'on'
+        stock = int(request.form.get('stock', 0)) if track_stock else 0
+        low_stock_threshold = int(request.form.get('low_stock_threshold', 5)) if track_stock else 5
         image_source = request.form.get('image_source', 'keep')  # 'keep', 'url', or 'upload'
         
         # Get current item to get existing image
@@ -2159,6 +2211,9 @@ def edit_food_item(food_id):
                 'category': category,
                 'image_url': final_image_url,
                 'customization_hint': customization_hint,
+                'track_stock': track_stock,
+                'stock': stock,
+                'low_stock_threshold': low_stock_threshold,
                 'updated_at': datetime.now()
             }}
         )
@@ -2196,6 +2251,36 @@ def serve_food_image(image_id):
             b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\nIDATx\x9cc\x00\x01\x00\x00\x05\x00\x01\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82',
             mimetype='image/png'
         ), 404
+
+@app.route('/api/stock_alerts')
+@admin_required
+def stock_alerts():
+    user = get_logged_in_user()
+    if user.get('role') == 'core_admin':
+        return {'alerts': []}
+        
+    org_id = user.get('organization_id')
+    if not org_id:
+        return {'alerts': []}
+        
+    # Find items that are tracked, available, and stock is <= threshold
+    alerts = []
+    items = list(db.menu_items.find({
+        'organization_id': org_id,
+        'track_stock': True,
+        'is_available': True,
+        '$expr': {'$lte': ['$stock', '$low_stock_threshold']}
+    }))
+    
+    for item in items:
+        alerts.append({
+            'id': str(item['_id']),
+            'name': item['name'],
+            'stock': item.get('stock', 0),
+            'threshold': item.get('low_stock_threshold', 5)
+        })
+        
+    return {'alerts': alerts}
 
 # ==================== CORE ADMIN ROUTES ====================
 
@@ -2449,6 +2534,6 @@ def core_admin_all_users():
 # ==================== MAIN ====================
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 8000))
+    port = int(os.environ.get('PORT', 8080))
     app.run(host='0.0.0.0', port=port, debug=False)
 
