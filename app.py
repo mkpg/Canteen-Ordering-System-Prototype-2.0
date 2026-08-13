@@ -23,6 +23,7 @@ from flask_mail import Mail, Message
 from flask_compress import Compress
 from dotenv import load_dotenv
 from io import BytesIO
+from flask_sqlalchemy import SQLAlchemy
 
 # Load environment variables
 load_dotenv()
@@ -71,6 +72,13 @@ pending_logins_col = db['pending_logins']  # For email-based 2FA
 
 # GridFS for storing uploaded images in MongoDB
 fs = GridFS(db, collection='food_images')
+
+# ==================== NEON POSTGRESQL SETUP ====================
+# We will initialize SQLAlchemy for Neon alongside PyMongo.
+# Eventually we can migrate collections over here.
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('NEON_DATABASE_URL', 'sqlite:///fallback.db')
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+sql_db = SQLAlchemy(app)
 
 # Allowed image file extensions
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
