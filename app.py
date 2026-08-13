@@ -509,14 +509,18 @@ def generate_org_admin_code():
 def get_user_organization(user):
     """Get the organization object for a user (legacy, checks user's org field)."""
     if user and user.get('organization_id'):
-        return organizations_col.find_one({'_id': user['organization_id']})
+        org_obj = OrganizationModel.query.filter_by(mongo_id=str(user['organization_id'])).first()
+        if org_obj:
+            return org_obj.to_dict()
     return None
 
 def get_active_organization():
     """Get the currently active organization from session."""
     if 'active_organization_id' in session and session['active_organization_id']:
         try:
-            return organizations_col.find_one({'_id': ObjectId(session['active_organization_id'])})
+            org_obj = OrganizationModel.query.filter_by(mongo_id=str(session['active_organization_id'])).first()
+            if org_obj:
+                return org_obj.to_dict()
         except:
             pass
     return None
@@ -1603,8 +1607,8 @@ def join_organization():
         return redirect(url_for('profile'))
     
     try:
-        org_id = ObjectId(organization_id_str)
-        org = organizations_col.find_one({'_id': org_id, 'is_active': True})
+        org_obj = OrganizationModel.query.filter_by(mongo_id=organization_id_str, is_active=True).first()
+        org = org_obj.to_dict() if org_obj else None
         
         if not org:
             flash('Organization not found or inactive.', 'danger')
@@ -1615,6 +1619,7 @@ def join_organization():
         if user.get('organization_id') and user['organization_id'] not in user_org_ids:
             user_org_ids.append(user['organization_id'])
         
+        org_id = org['_id']
         # Check if already a member
         if org_id in user_org_ids:
             flash(f'You are already a member of {org["name"]}.', 'info')
@@ -1622,11 +1627,16 @@ def join_organization():
         
         # Add to organization_ids
         user_org_ids.append(org_id)
-        users_col.update_one(
-            {'username': user['username']},
-            {'$set': {'organization_ids': user_org_ids}}
-        )
-        
+        # Update user in Neon SQL
+        user_obj = UserModel.query.filter_by(username=user['username']).first()
+        if user_obj:
+            user_obj.organization_id = organization_id_str # fallback legacy
+            # No organization_ids array in SQL model. For this prototype we're moving to single org per user logic 
+            # or if we must support multiple, we'd need a mapping table.
+            # But the user schema defined in SQL only has `organization_id`. 
+            # I will set organization_id.
+            sql_db.session.commit()
+            
         flash(f'You have joined {org["name"]}! Logout and login to access it.', 'success')
     except Exception as e:
         flash('Failed to join organization.', 'danger')
@@ -1935,13 +1945,14 @@ def admin_users():
     """Admin user management."""
     user = get_logged_in_user()
     
-    query = {}
+    query_filters = []
     if user.get('role') != 'core_admin':
         org_id = user.get('organization_id')
         if org_id:
-            query['organization_id'] = org_id
+            query_filters.append(UserModel.organization_id == str(org_id))
             
-    all_users = list(users_col.find(query).sort('created_at', -1))
+    users_objs = UserModel.query.filter(*query_filters).order_by(UserModel.created_at.desc()).all()
+    all_users = [u.to_dict() for u in users_objs]
     
     return render_template(
         'admin_users.html',
@@ -1964,9 +1975,12 @@ def delete_user(username):
     
     try:
         # Delete user
-        user_result = users_col.delete_one({'username': username})
+        user_to_delete = UserModel.query.filter_by(username=username).first()
         
-        if user_result.deleted_count:
+        if user_to_delete:
+            sql_db.session.delete(user_to_delete)
+            sql_db.session.commit()
+            
             # Delete user's orders
             orders_col.delete_many({'username': username})
             # Delete user's feedback
@@ -2478,29 +2492,35 @@ def core_admin_organizations():
         
         if not org_name:
             flash('Organization name is required.', 'danger')
-        elif organizations_col.find_one({'name': {'$regex': f'^{org_name}$', '$options': 'i'}}):
+        elif OrganizationModel.query.filter(OrganizationModel.name.ilike(org_name)).first():
             flash('Organization with this name already exists.', 'danger')
         else:
             # Generate unique admin code
             admin_code = generate_org_admin_code()
             
-            organizations_col.insert_one({
-                'name': org_name,
-                'description': org_description or f'{org_name} Canteen',
-                'admin_code': admin_code,
-                'is_active': True,
-                'created_at': datetime.now()
-            })
+            new_org = OrganizationModel(
+                mongo_id=str(ObjectId()), # Give it a mongo ID string
+                name=org_name,
+                description=org_description or f'{org_name} Canteen',
+                admin_code=admin_code,
+                is_active=True,
+                created_at=datetime.now()
+            )
+            sql_db.session.add(new_org)
+            sql_db.session.commit()
             
             flash(f'Organization "{org_name}" created! Admin Code: {admin_code}', 'success')
         
         return redirect(url_for('core_admin_organizations'))
     
     # Get all organizations
-    organizations = list(organizations_col.find().sort('created_at', -1))
-    for org in organizations:
-        org['user_count'] = users_col.count_documents({'organization_id': org['_id']})
-        org['admin_count'] = users_col.count_documents({'organization_id': org['_id'], 'role': 'org_admin'})
+    org_objs = OrganizationModel.query.order_by(OrganizationModel.created_at.desc()).all()
+    organizations = []
+    for o in org_objs:
+        org_dict = o.to_dict()
+        org_dict['user_count'] = UserModel.query.filter_by(organization_id=str(o.mongo_id)).count()
+        org_dict['admin_count'] = UserModel.query.filter_by(organization_id=str(o.mongo_id), role='org_admin').count()
+        organizations.append(org_dict)
     
     return render_template(
         'core_admin_organizations.html',
@@ -2514,15 +2534,14 @@ def core_admin_organizations():
 def toggle_organization(org_id):
     """Toggle organization active/inactive status."""
     try:
-        org = organizations_col.find_one({'_id': ObjectId(org_id)})
-        if org:
-            new_status = not org.get('is_active', True)
-            organizations_col.update_one(
-                {'_id': ObjectId(org_id)},
-                {'$set': {'is_active': new_status}}
-            )
+        org_obj = OrganizationModel.query.filter_by(mongo_id=org_id).first()
+        if org_obj:
+            new_status = not org_obj.is_active
+            org_obj.is_active = new_status
+            sql_db.session.commit()
+            
             status_text = 'activated' if new_status else 'deactivated'
-            flash(f'Organization "{org["name"]}" has been {status_text}.', 'success')
+            flash(f'Organization "{org_obj.name}" has been {status_text}.', 'success')
         else:
             flash('Organization not found.', 'danger')
     except Exception as e:
@@ -2536,23 +2555,22 @@ def toggle_organization(org_id):
 def delete_organization(org_id):
     """Delete an organization and all its data."""
     try:
-        org = organizations_col.find_one({'_id': ObjectId(org_id)})
-        if org:
+        org_obj = OrganizationModel.query.filter_by(mongo_id=org_id).first()
+        if org_obj:
+            # Delete all users in this organization from SQL
+            UserModel.query.filter_by(organization_id=org_id).delete()
+            sql_db.session.commit()
+            
+            # Since Orders and Menu Items are still in Mongo, we still need to delete them there!
             org_oid = ObjectId(org_id)
-            
-            # Delete all users in this organization
-            users_col.delete_many({'organization_id': org_oid})
-            
-            # Delete all orders from this organization
             orders_col.delete_many({'organization_id': org_oid})
-            
-            # Delete all menu items from this organization
             db.menu_items.delete_many({'organization_id': org_oid})
             
-            # Delete the organization
-            organizations_col.delete_one({'_id': org_oid})
+            # Delete the organization from SQL
+            sql_db.session.delete(org_obj)
+            sql_db.session.commit()
             
-            flash(f'Organization "{org["name"]}" and all its data have been deleted.', 'success')
+            flash(f'Organization "{org_obj.name}" and all its data have been deleted.', 'success')
         else:
             flash('Organization not found.', 'danger')
     except Exception as e:
@@ -2566,14 +2584,12 @@ def delete_organization(org_id):
 def regenerate_org_code(org_id):
     """Regenerate admin code for an organization."""
     try:
-        org = organizations_col.find_one({'_id': ObjectId(org_id)})
-        if org:
+        org_obj = OrganizationModel.query.filter_by(mongo_id=org_id).first()
+        if org_obj:
             new_code = generate_org_admin_code()
-            organizations_col.update_one(
-                {'_id': ObjectId(org_id)},
-                {'$set': {'admin_code': new_code}}
-            )
-            flash(f'New admin code for "{org["name"]}": {new_code}', 'success')
+            org_obj.admin_code = new_code
+            sql_db.session.commit()
+            flash(f'New admin code for "{org_obj.name}": {new_code}', 'success')
         else:
             flash('Organization not found.', 'warning')
     except Exception as e:
@@ -2593,14 +2609,15 @@ def core_admin_delete_user(username):
         return redirect(url_for('core_admin_all_users'))
     
     try:
-        user_to_delete = users_col.find_one({'username': username})
-        if user_to_delete and user_to_delete.get('role') == 'core_admin':
+        user_to_delete = UserModel.query.filter_by(username=username).first()
+        if user_to_delete and user_to_delete.role == 'core_admin':
             flash('Cannot delete Core Admin accounts.', 'danger')
             return redirect(url_for('core_admin_all_users'))
         
-        user_result = users_col.delete_one({'username': username})
-        
-        if user_result.deleted_count:
+        if user_to_delete:
+            sql_db.session.delete(user_to_delete)
+            sql_db.session.commit()
+            
             orders_col.delete_many({'username': username})
             feedback_col.delete_many({'username': username})
             flash(f'User "{username}" and all associated data deleted.', 'success')
@@ -2623,30 +2640,31 @@ def core_admin_all_users():
     role_filter = request.args.get('role', '')
     
     # Build query
-    query = {'role': {'$ne': 'core_admin'}}  # Exclude core admin from list
+    query_filters = [UserModel.role != 'core_admin']  # Exclude core admin from list
     
     if org_filter:
-        try:
-            query['organization_id'] = ObjectId(org_filter)
-        except:
-            pass
+        query_filters.append(UserModel.organization_id == org_filter)
     
     if role_filter:
-        query['role'] = role_filter
+        query_filters.append(UserModel.role == role_filter)
     
     # Get users
-    all_users = list(users_col.find(query).sort('created_at', -1))
+    users_objs = UserModel.query.filter(*query_filters).order_by(UserModel.created_at.desc()).all()
+    all_users = []
     
     # Attach organization names
-    for u in all_users:
-        if u.get('organization_id'):
-            org = organizations_col.find_one({'_id': u['organization_id']})
-            u['org_name'] = org['name'] if org else 'Unknown'
+    for u_obj in users_objs:
+        u_dict = u_obj.to_dict()
+        if u_dict.get('organization_id'):
+            org_obj = OrganizationModel.query.filter_by(mongo_id=u_dict['organization_id']).first()
+            u_dict['org_name'] = org_obj.name if org_obj else 'Unknown'
         else:
-            u['org_name'] = 'No Organization'
+            u_dict['org_name'] = 'No Organization'
+        all_users.append(u_dict)
     
     # Get all organizations for filter dropdown
-    organizations = list(organizations_col.find().sort('name', 1))
+    org_objs = OrganizationModel.query.order_by(OrganizationModel.name.asc()).all()
+    organizations = [o.to_dict() for o in org_objs]
     
     return render_template(
         'core_admin_users.html',
