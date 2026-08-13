@@ -554,31 +554,32 @@ def inject_global_vars():
 
 def seed_core_admin():
     """Create or update Core Admin account from environment variables in Neon SQL."""
-    existing = UserModel.query.filter_by(email=CORE_ADMIN_EMAIL).first()
-    if not existing:
-        new_admin = UserModel(
-            first_name='Core',
-            last_name='Admin',
-            username=CORE_ADMIN_USERNAME,
-            password=generate_password_hash(CORE_ADMIN_PASSWORD),
-            email=CORE_ADMIN_EMAIL,
-            phone='0000000000',
-            role='core_admin',
-            is_admin=True,
-            organization_id=None,
-            created_at=datetime.now()
-        )
-        sql_db.session.add(new_admin)
-        sql_db.session.commit()
-        print(f"✅ Core Admin account created in SQL (username: {CORE_ADMIN_USERNAME})")
-    else:
-        # Always update Core Admin to match environment variables
-        existing.role = 'core_admin'
-        existing.is_admin = True
-        existing.username = CORE_ADMIN_USERNAME
-        existing.password = generate_password_hash(CORE_ADMIN_PASSWORD)
-        sql_db.session.commit()
-        print("✅ Core Admin credentials synced from environment in SQL")
+    with app.app_context():
+        existing = UserModel.query.filter_by(email=CORE_ADMIN_EMAIL).first()
+        if not existing:
+            new_admin = UserModel(
+                first_name='Core',
+                last_name='Admin',
+                username=CORE_ADMIN_USERNAME,
+                password=generate_password_hash(CORE_ADMIN_PASSWORD),
+                email=CORE_ADMIN_EMAIL,
+                phone='0000000000',
+                role='core_admin',
+                is_admin=True,
+                organization_id=None,
+                created_at=datetime.now()
+            )
+            sql_db.session.add(new_admin)
+            sql_db.session.commit()
+            print(f"✅ Core Admin account created in SQL (username: {CORE_ADMIN_USERNAME})")
+        else:
+            # Always update Core Admin to match environment variables
+            existing.role = 'core_admin'
+            existing.is_admin = True
+            existing.username = CORE_ADMIN_USERNAME
+            existing.password = generate_password_hash(CORE_ADMIN_PASSWORD)
+            sql_db.session.commit()
+            print("✅ Core Admin credentials synced from environment in SQL")
 
 # Seed Core Admin on startup
 seed_core_admin()
