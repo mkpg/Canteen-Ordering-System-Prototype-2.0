@@ -80,6 +80,117 @@ app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('NEON_DATABASE_URL', 'sqlite:/
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 sql_db = SQLAlchemy(app)
 
+# ==================== SQLALCHEMY MODELS ====================
+
+class OrganizationModel(sql_db.Model):
+    __tablename__ = 'organizations'
+    id = sql_db.Column(sql_db.Integer, primary_key=True)
+    mongo_id = sql_db.Column(sql_db.String(24), unique=True, nullable=True) # To store original MongoDB ObjectId
+    name = sql_db.Column(sql_db.String(100), nullable=False)
+    description = sql_db.Column(sql_db.Text, nullable=True)
+    admin_code = sql_db.Column(sql_db.String(50), nullable=False)
+    is_active = sql_db.Column(sql_db.Boolean, default=True)
+    created_at = sql_db.Column(sql_db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            '_id': ObjectId(self.mongo_id) if self.mongo_id else self.id,
+            'name': self.name,
+            'description': self.description,
+            'admin_code': self.admin_code,
+            'is_active': self.is_active,
+            'created_at': self.created_at
+        }
+
+class UserModel(sql_db.Model):
+    __tablename__ = 'users'
+    id = sql_db.Column(sql_db.Integer, primary_key=True)
+    mongo_id = sql_db.Column(sql_db.String(24), unique=True, nullable=True)
+    first_name = sql_db.Column(sql_db.String(50), nullable=False)
+    last_name = sql_db.Column(sql_db.String(50), nullable=False)
+    username = sql_db.Column(sql_db.String(50), unique=True, nullable=False)
+    password = sql_db.Column(sql_db.String(255), nullable=False)
+    email = sql_db.Column(sql_db.String(100), unique=True, nullable=False)
+    phone = sql_db.Column(sql_db.String(20), nullable=True)
+    role = sql_db.Column(sql_db.String(20), nullable=False)
+    is_admin = sql_db.Column(sql_db.Boolean, default=False)
+    organization_id = sql_db.Column(sql_db.String(24), nullable=True) # References OrganizationModel.mongo_id
+    created_at = sql_db.Column(sql_db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            '_id': ObjectId(self.mongo_id) if self.mongo_id else self.id,
+            'first_name': self.first_name,
+            'last_name': self.last_name,
+            'username': self.username,
+            'password': self.password,
+            'email': self.email,
+            'phone': self.phone,
+            'role': self.role,
+            'is_admin': self.is_admin,
+            'organization_id': ObjectId(self.organization_id) if self.organization_id else None,
+            'created_at': self.created_at
+        }
+
+class MenuItemModel(sql_db.Model):
+    __tablename__ = 'menu_items'
+    id = sql_db.Column(sql_db.Integer, primary_key=True)
+    mongo_id = sql_db.Column(sql_db.String(24), unique=True, nullable=True)
+    name = sql_db.Column(sql_db.String(100), nullable=False)
+    description = sql_db.Column(sql_db.Text, nullable=True)
+    price = sql_db.Column(sql_db.Float, nullable=False)
+    category = sql_db.Column(sql_db.String(50), nullable=True)
+    image_url = sql_db.Column(sql_db.Text, nullable=True)
+    customization_hint = sql_db.Column(sql_db.Text, nullable=True)
+    track_stock = sql_db.Column(sql_db.Boolean, default=False)
+    stock = sql_db.Column(sql_db.Integer, default=0)
+    low_stock_threshold = sql_db.Column(sql_db.Integer, default=5)
+    is_available = sql_db.Column(sql_db.Boolean, default=True)
+    organization_id = sql_db.Column(sql_db.String(24), nullable=True)
+    created_at = sql_db.Column(sql_db.DateTime, default=datetime.utcnow)
+
+class OrderModel(sql_db.Model):
+    __tablename__ = 'orders'
+    id = sql_db.Column(sql_db.Integer, primary_key=True)
+    mongo_id = sql_db.Column(sql_db.String(24), unique=True, nullable=True)
+    username = sql_db.Column(sql_db.String(50), nullable=False)
+    product_name = sql_db.Column(sql_db.String(100), nullable=False)
+    quantity = sql_db.Column(sql_db.Integer, nullable=False)
+    price = sql_db.Column(sql_db.Float, nullable=False)
+    total_price = sql_db.Column(sql_db.Float, nullable=False)
+    customizations = sql_db.Column(sql_db.Text, nullable=True)
+    status = sql_db.Column(sql_db.String(50), nullable=False, default='pending')
+    organization_id = sql_db.Column(sql_db.String(24), nullable=True)
+    order_time = sql_db.Column(sql_db.DateTime, default=datetime.utcnow)
+    payment_time = sql_db.Column(sql_db.DateTime, nullable=True)
+    completed_time = sql_db.Column(sql_db.DateTime, nullable=True)
+    scheduled_time = sql_db.Column(sql_db.DateTime, nullable=True)
+    is_scheduled = sql_db.Column(sql_db.Boolean, default=False)
+    payment_type = sql_db.Column(sql_db.String(50), nullable=True)
+
+class FeedbackModel(sql_db.Model):
+    __tablename__ = 'feedback'
+    id = sql_db.Column(sql_db.Integer, primary_key=True)
+    mongo_id = sql_db.Column(sql_db.String(24), unique=True, nullable=True)
+    username = sql_db.Column(sql_db.String(50), nullable=False)
+    rating = sql_db.Column(sql_db.Integer, nullable=False)
+    comments = sql_db.Column(sql_db.Text, nullable=True)
+    submitted_at = sql_db.Column(sql_db.DateTime, default=datetime.utcnow)
+
+class PendingLoginModel(sql_db.Model):
+    __tablename__ = 'pending_logins'
+    id = sql_db.Column(sql_db.Integer, primary_key=True)
+    mongo_id = sql_db.Column(sql_db.String(24), unique=True, nullable=True)
+    token = sql_db.Column(sql_db.String(100), nullable=False, unique=True)
+    username = sql_db.Column(sql_db.String(50), nullable=False)
+    email = sql_db.Column(sql_db.String(100), nullable=False)
+    correct_number = sql_db.Column(sql_db.Integer, nullable=False)
+    status = sql_db.Column(sql_db.String(50), default='pending')
+    created_at = sql_db.Column(sql_db.DateTime, default=datetime.utcnow)
+    expires_at = sql_db.Column(sql_db.DateTime, nullable=False)
+    ip_address = sql_db.Column(sql_db.String(50), nullable=True)
+    user_agent = sql_db.Column(sql_db.Text, nullable=True)
+
 # Allowed image file extensions
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 
@@ -332,9 +443,11 @@ def validate_password(password):
 # ==================== HELPER FUNCTIONS ====================
 
 def get_logged_in_user():
-    """Get the currently logged-in user from the session."""
+    """Get the currently logged-in user from the session using Neon SQL."""
     if 'username' in session:
-        return users_col.find_one({'username': session['username']})
+        user = UserModel.query.filter_by(username=session['username']).first()
+        if user:
+            return user.to_dict()
     return None
 
 def get_pending_cart_count():
@@ -418,8 +531,9 @@ def get_active_organization_id():
     return None
 
 def get_all_organizations():
-    """Get all active organizations for dropdowns."""
-    return list(organizations_col.find({'is_active': True}).sort('name', 1))
+    """Get all active organizations for dropdowns from Neon SQL."""
+    orgs = OrganizationModel.query.filter_by(is_active=True).order_by(OrganizationModel.name.asc()).all()
+    return [org.to_dict() for org in orgs]
 
 
 
@@ -439,34 +553,32 @@ def inject_global_vars():
 # ==================== SEED CORE ADMIN ====================
 
 def seed_core_admin():
-    """Create or update Core Admin account from environment variables."""
-    existing = users_col.find_one({'email': CORE_ADMIN_EMAIL})
+    """Create or update Core Admin account from environment variables in Neon SQL."""
+    existing = UserModel.query.filter_by(email=CORE_ADMIN_EMAIL).first()
     if not existing:
-        users_col.insert_one({
-            'first_name': 'Core',
-            'last_name': 'Admin',
-            'username': CORE_ADMIN_USERNAME,
-            'password': generate_password_hash(CORE_ADMIN_PASSWORD),
-            'email': CORE_ADMIN_EMAIL,
-            'phone': '0000000000',
-            'role': 'core_admin',
-            'is_admin': True,
-            'organization_id': None,  # Core admin doesn't belong to any org
-            'created_at': datetime.now()
-        })
-        print(f"✅ Core Admin account created (username: {CORE_ADMIN_USERNAME})")
+        new_admin = UserModel(
+            first_name='Core',
+            last_name='Admin',
+            username=CORE_ADMIN_USERNAME,
+            password=generate_password_hash(CORE_ADMIN_PASSWORD),
+            email=CORE_ADMIN_EMAIL,
+            phone='0000000000',
+            role='core_admin',
+            is_admin=True,
+            organization_id=None,
+            created_at=datetime.now()
+        )
+        sql_db.session.add(new_admin)
+        sql_db.session.commit()
+        print(f"✅ Core Admin account created in SQL (username: {CORE_ADMIN_USERNAME})")
     else:
         # Always update Core Admin to match environment variables
-        users_col.update_one(
-            {'email': CORE_ADMIN_EMAIL},
-            {'$set': {
-                'role': 'core_admin',
-                'is_admin': True,
-                'username': CORE_ADMIN_USERNAME,
-                'password': generate_password_hash(CORE_ADMIN_PASSWORD)
-            }}
-        )
-        print("✅ Core Admin credentials synced from environment")
+        existing.role = 'core_admin'
+        existing.is_admin = True
+        existing.username = CORE_ADMIN_USERNAME
+        existing.password = generate_password_hash(CORE_ADMIN_PASSWORD)
+        sql_db.session.commit()
+        print("✅ Core Admin credentials synced from environment in SQL")
 
 # Seed Core Admin on startup
 seed_core_admin()
@@ -599,7 +711,8 @@ def login():
         organization_id_str = request.form.get('organization_id', '')
         remember_device = request.form.get('remember_device') == 'on'
         
-        user = users_col.find_one({'username': username})
+        user_obj = UserModel.query.filter_by(username=username).first()
+        user = user_obj.to_dict() if user_obj else None
         
         if user and check_password_hash(user['password'], password):
             # Core admin doesn't need to select organization or 2FA
@@ -630,7 +743,8 @@ def login():
                         return render_template('login.html', organizations=organizations)
                     
                     # Validate org is active
-                    org = organizations_col.find_one({'_id': selected_org_id, 'is_active': True})
+                    org_obj = OrganizationModel.query.filter_by(mongo_id=str(selected_org_id), is_active=True).first()
+                    org = org_obj.to_dict() if org_obj else None
                     if not org:
                         flash('This organization is not active.', 'danger')
                         return render_template('login.html', organizations=organizations)
@@ -739,10 +853,10 @@ def register():
         if not validate_phone(phone):
             errors.append('Invalid phone number format.')
         
-        if users_col.find_one({'username': username}):
+        if UserModel.query.filter_by(username=username).first():
             errors.append('Username already exists.')
         
-        if users_col.find_one({'email': email}):
+        if UserModel.query.filter_by(email=email).first():
             errors.append('Email already registered.')
         
         # Determine role and organization based on admin code
@@ -752,18 +866,17 @@ def register():
         
         if admin_code:
             # Check if it's an organization admin code
-            org_for_admin = organizations_col.find_one({'admin_code': admin_code})
-            if org_for_admin:
+            org_obj = OrganizationModel.query.filter_by(admin_code=admin_code).first()
+            if org_obj:
+                org_for_admin = org_obj.to_dict()
                 # Check if this organization already has an admin
-                existing_admin = users_col.find_one({
-                    'role': 'org_admin',
-                    'organization_id': org_for_admin['_id']
-                })
+                existing_admin = UserModel.query.filter_by(role='org_admin', organization_id=str(org_obj.mongo_id)).first()
                 if existing_admin:
                     errors.append('This organization already has an admin. Each organization can only have one admin.')
                 else:
                     role = 'org_admin'
-                    organization_id = org_for_admin['_id']
+                    organization_id = ObjectId(org_obj.mongo_id) if org_obj.mongo_id else None
+                    organization_id_str = str(org_obj.mongo_id) if org_obj.mongo_id else None
             else:
                 errors.append('Invalid admin code.')
         else:
@@ -774,8 +887,8 @@ def register():
             else:
                 try:
                     organization_id = ObjectId(organization_id_str)
-                    org = organizations_col.find_one({'_id': organization_id, 'is_active': True})
-                    if not org:
+                    org_obj = OrganizationModel.query.filter_by(mongo_id=organization_id_str, is_active=True).first()
+                    if not org_obj:
                         errors.append('Invalid organization selected.')
                 except:
                     errors.append('Invalid organization selected.')
@@ -790,19 +903,24 @@ def register():
         is_admin = role == 'org_admin'
         
         try:
-            users_col.insert_one({
-                'first_name': first_name,
-                'last_name': last_name,
-                'username': username,
-                'password': hashed_pw,
-                'email': email,
-                'phone': phone,
-                'role': role,
-                'is_admin': is_admin,
-                'organization_id': organization_id,  # Legacy field for backwards compat
-                'organization_ids': [organization_id] if organization_id else [],  # New multi-org field
-                'created_at': datetime.now()
-            })
+            # Generate a new ObjectId for the user since MongoDB originally did this
+            new_user_mongo_id = str(ObjectId())
+            
+            new_user = UserModel(
+                mongo_id=new_user_mongo_id,
+                first_name=first_name,
+                last_name=last_name,
+                username=username,
+                password=hashed_pw,
+                email=email,
+                phone=phone,
+                role=role,
+                is_admin=is_admin,
+                organization_id=organization_id_str if organization_id_str else None,
+                created_at=datetime.now()
+            )
+            sql_db.session.add(new_user)
+            sql_db.session.commit()
             
             if role == 'org_admin':
                 flash(f'Organization Admin account created for {org_for_admin["name"]}! Please log in.', 'success')
