@@ -1,6 +1,6 @@
 # 🍴 MyCanteenApp - Automated Canteen Ordering System
 
-A complete web-based canteen ordering system built with Flask and MongoDB, featuring user authentication, menu ordering, payment processing, order tracking, and admin management.
+A complete web-based canteen ordering system built with Flask, MongoDB, and Neon PostgreSQL, featuring user authentication, menu ordering, payment processing, order tracking, and admin management.
 
 ## ✨ Features
 
@@ -22,7 +22,7 @@ A complete web-based canteen ordering system built with Flask and MongoDB, featu
 ## 🛠️ Tech Stack
 
 - **Backend**: Python Flask
-- **Database**: MongoDB (PyMongo)
+- **Database**: Neon PostgreSQL (Users & Organizations via SQLAlchemy) & MongoDB (Orders & Menu via PyMongo)
 - **Frontend**: HTML, CSS, JavaScript, Bootstrap 4
 - **Authentication**: Werkzeug password hashing
 - **Email**: Flask-Mail for password reset
@@ -33,6 +33,7 @@ A complete web-based canteen ordering system built with Flask and MongoDB, featu
 ```
 proto 2.1/
 ├── app.py                 # Main Flask application
+├── migrate_db.py          # Database migration script (Mongo -> Neon SQL)
 ├── requirements.txt       # Python dependencies
 ├── .env.example          # Environment variables template
 ├── README.md             # This file
@@ -69,6 +70,7 @@ proto 2.1/
 ### Prerequisites
 - Python 3.8+
 - MongoDB (local or MongoDB Atlas)
+- Neon PostgreSQL Serverless Database
 
 ### Installation
 
@@ -101,14 +103,18 @@ proto 2.1/
    # Edit .env with your settings:
    # - SECRET_KEY: Generate a random secret key
    # - MONGO_URI: Your MongoDB connection string
+   # - NEON_DATABASE_URL: Your Neon PostgreSQL connection string
    # - MAIL_USERNAME: Your Gmail address
    # - MAIL_PASSWORD: Your Gmail app password
    # - ADMIN_CODE: Secret code for admin registration
    ```
 
-5. **Start MongoDB**
-   - Local: Start MongoDB service
-   - Atlas: Ensure your connection string is correct
+5. **Start and Migrate Databases**
+   - MongoDB: Ensure your connection string is correct and running
+   - Neon SQL: Run the migration script to copy existing users and organizations to SQL:
+     ```bash
+     python migrate_db.py
+     ```
 
 6. **Run the application**
    ```bash
