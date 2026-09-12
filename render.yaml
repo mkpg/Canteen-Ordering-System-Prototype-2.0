@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: canteen-ordering-system
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    envVars:
+      - key: SECRET_KEY
+        sync: false
+      - key: MONGO_URI
+        sync: false
+      - key: MAIL_USERNAME
+        sync: false
+      - key: MAIL_PASSWORD
+        sync: false
+      - key: ADMIN_CODE
+        sync: false
+      - key: PYTHON_VERSION
+        value: 3.11.0

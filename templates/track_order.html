@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Track Order - CanteenOs</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <style>
+        .status-timeline {
+            position: relative;
+            padding-left: 30px;
+        }
+
+        .timeline-step {
+            position: relative;
+            padding: 20px 0;
+            padding-left: 30px;
+        }
+
+        .timeline-step::before {
+            content: '';
+            position: absolute;
+            left: -21px;
+            top: 25px;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #e2e8f0;
+            border: 3px solid #fff;
+            box-shadow: 0 0 0 2px #e2e8f0;
+            z-index: 1;
+        }
+
+        .timeline-step::after {
+            content: '';
+            position: absolute;
+            left: -14px;
+            top: 41px;
+            width: 2px;
+            height: calc(100% - 16px);
+            background: #e2e8f0;
+        }
+
+        .timeline-step:last-child::after {
+            display: none;
+        }
+
+        .timeline-step.completed::before {
+            background: #10b981;
+            box-shadow: 0 0 0 2px #10b981;
+        }
+
+        .timeline-step.completed::after {
+            background: #10b981;
+        }
+
+        .timeline-step.active::before {
+            background: #2563eb;
+            box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.3);
+            animation: pulse 2s infinite;
+        }
+
+        .timeline-step.scheduled::before {
+            background: #f59e0b;
+            box-shadow: 0 0 0 2px #f59e0b;
+        }
+
+        .timeline-step.scheduled::after {
+            background: #f59e0b;
+        }
+
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.3);
+            }
+
+            50% {
+                box-shadow: 0 0 0 8px rgba(37, 99, 235, 0.1);
+            }
+
+            100% {
+                box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.3);
+            }
+        }
+
+        .payment-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .payment-badge.prepaid {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .payment-badge.cod {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .scheduled-info {
+            background: linear-gradient(135deg, #fef3c7, #fde68a);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+
+<body>
+    {% include 'navbar.html' %}
+    <div class="container my-5">
+        <div class="row">
+            <div class="col-lg-6">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0"><svg style="width: 1.25rem; height: 1.25rem; margin-right: 0.5rem;">
+                                <use href="#icon-package" />
+                            </svg> Order Details</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <strong>Item:</strong> {{ order.product_name }}
+                        </div>
+                        <div class="mb-3">
+                            <strong>Quantity:</strong> {{ order.quantity }}
+                        </div>
+                        <div class="mb-3">
+                            <strong>Price:</strong> ₹{{ order.total_price }}
+                        </div>
+                        {% if order.customizations %}
+                        <div class="mb-3">
+                            <strong>Customizations:</strong> {{ order.customizations }}
+                        </div>
+                        {% endif %}
+                        <div class="mb-3">
+                            <strong>Order Time:</strong>
+                            <span class="local-datetime" data-utc="{{ order.order_time.isoformat() + 'Z' }}">{{ order.order_time.strftime('%B %d, %Y at %I:%M %p') }}</span>
+                        </div>
+                        {% if order.is_scheduled and order.scheduled_time %}
+                        <div class="scheduled-info">
+                            <div class="mb-2">
+                                <strong><svg style="width: 1rem; height: 1rem; margin-right: 0.25rem;">
+                                        <use href="#icon-clock" />
+                                    </svg> Scheduled Pickup:</strong>
+                                <br>
+                                <span class="h5"><span class="local-datetime" data-utc="{{ order.scheduled_time.isoformat() + 'Z' }}">{{ order.scheduled_time.strftime('%B %d, %Y at %I:%M %p') }}</span></span>
+                            </div>
+                            <div>
+                                <strong>Payment:</strong>
+                                {% if order.payment_type == 'cod' %}
+                                <span class="payment-badge cod">Cash on Pickup</span>
+                                {% else %}
+                                <span class="payment-badge prepaid">Prepaid</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% if order.payment_time %}
+                        <div class="mb-3">
+                            <strong>Payment Time:</strong>
+                            <span class="local-datetime" data-utc="{{ order.payment_time.isoformat() + 'Z' }}">{{ order.payment_time.strftime('%B %d, %Y at %I:%M %p') }}</span>
+                        </div>
+                        {% endif %}
+                        {% if order.completed_time %}
+                        <div class="mb-3">
+                            <strong>Completed Time:</strong>
+                            <span class="local-datetime" data-utc="{{ order.completed_time.isoformat() + 'Z' }}">{{ order.completed_time.strftime('%B %d, %Y at %I:%M %p') }}</span>
+                        </div>
+                        {% endif %}
+                        <div class="mb-3">
+                            <strong>Current Status:</strong>
+                            <span class="status-badge status-{{ order.status }} ml-2">
+                                {% if order.status == 'scheduled_prepaid' %}
+                                Scheduled (Prepaid)
+                                {% elif order.status == 'scheduled_cod' %}
+                                Scheduled (Pay on Pickup)
+                                {% elif order.status == 'cancelled' %}
+                                Cancelled
+                                {% else %}
+                                {{ order.status | capitalize }}
+                                {% endif %}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-6">
+                <div class="card">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0"><svg style="width: 1.25rem; height: 1.25rem; margin-right: 0.5rem;">
+                                <use href="#icon-map-pin" />
+                            </svg> Order Status Timeline</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="status-timeline">
+                            {% if order.is_scheduled %}
+                            <!-- Scheduled Step -->
+                            <div
+                                class="timeline-step {% if order.status in ['scheduled_prepaid', 'scheduled_cod'] %}scheduled active{% else %}completed{% endif %}">
+                                <h6><svg style="width: 1.1rem; height: 1.1rem; margin-right: 0.35rem;">
+                                        <use href="#icon-clock" />
+                                    </svg> Scheduled
+                                    {% if order.payment_type == 'cod' %}(Pay on Pickup){% else %}(Prepaid){% endif %}
+                                </h6>
+                                <p class="text-muted mb-0">
+                                    {% if order.scheduled_time %}
+                                    Pickup: <span class="local-datetime" data-utc="{{ order.scheduled_time.isoformat() + 'Z' }}" data-sep=", " data-no-year="true">{{ order.scheduled_time.strftime('%I:%M %p, %b %d') }}</span>
+                                    {% endif %}
+                                </p>
+                            </div>
+                            {% endif %}
+
+                            <!-- Paid -->
+                            <div
+                                class="timeline-step {% if order.status in ['paid', 'preparing', 'ready', 'completed'] %}completed{% endif %} {% if order.status == 'paid' %}active{% endif %}">
+                                <h6><svg style="width: 1.1rem; height: 1.1rem; margin-right: 0.35rem;">
+                                        <use href="#icon-credit-card" />
+                                    </svg> {% if order.is_scheduled and order.status not in ['scheduled_prepaid',
+                                    'scheduled_cod'] %}Order Confirmed{% else %}Order Paid{% endif %}</h6>
+                                <p class="text-muted mb-0">
+                                    {% if order.payment_time %}
+                                    <span class="local-datetime" data-utc="{{ order.payment_time.isoformat() + 'Z' }}" data-sep=", " data-no-year="true">{{ order.payment_time.strftime('%I:%M %p, %b %d') }}</span>
+                                    {% elif order.status in ['scheduled_cod'] %}
+                                    Payment due at pickup
+                                    {% else %}
+                                    Pending
+                                    {% endif %}
+                                </p>
+                            </div>
+
+                            <!-- Preparing -->
+                            <div
+                                class="timeline-step {% if order.status in ['preparing', 'ready', 'completed'] %}completed{% endif %} {% if order.status == 'preparing' %}active{% endif %}">
+                                <h6><svg style="width: 1.1rem; height: 1.1rem; margin-right: 0.35rem;">
+                                        <use href="#icon-chef-hat" />
+                                    </svg> Being Prepared</h6>
+                                <p class="text-muted mb-0">
+                                    {% if order.status in ['preparing', 'ready', 'completed'] %}
+                                    Your order is being prepared
+                                    {% else %}
+                                    Waiting...
+                                    {% endif %}
+                                </p>
+                            </div>
+
+                            <!-- Ready -->
+                            <div
+                                class="timeline-step {% if order.status in ['ready', 'completed'] %}completed{% endif %} {% if order.status == 'ready' %}active{% endif %}">
+                                <h6><svg style="width: 1.1rem; height: 1.1rem; margin-right: 0.35rem;">
+                                        <use href="#icon-bell" />
+                                    </svg> Ready for Pickup</h6>
+                                <p class="text-muted mb-0">
+                                    {% if order.status in ['ready', 'completed'] %}
+                                    Your order is ready!
+                                    {% else %}
+                                    Waiting...
+                                    {% endif %}
+                                </p>
+                            </div>
+
+                            <!-- Completed -->
+                            <div class="timeline-step {% if order.status == 'completed' %}completed{% endif %}">
+                                <h6><svg style="width: 1.1rem; height: 1.1rem; margin-right: 0.35rem;">
+                                        <use href="#icon-check-circle" />
+                                    </svg> Completed</h6>
+                                <p class="text-muted mb-0">
+                                    {% if order.completed_time %}
+                                    <span class="local-datetime" data-utc="{{ order.completed_time.isoformat() + 'Z' }}" data-sep=", " data-no-year="true">{{ order.completed_time.strftime('%I:%M %p, %b %d') }}</span>
+                                    {% else %}
+                                    Waiting...
+                                    {% endif %}
+                                </p>
+                            </div>
+
+                            {% if order.status == 'cancelled' %}
+                            <!-- Cancelled -->
+                            <div class="timeline-step" style="opacity: 0.6;">
+                                <h6 class="text-danger"><svg
+                                        style="width: 1.1rem; height: 1.1rem; margin-right: 0.35rem;">
+                                        <use href="#icon-x" />
+                                    </svg> Order Cancelled</h6>
+                                <p class="text-muted mb-0">
+                                    {% if order.cancelled_time %}
+                                    <span class="local-datetime" data-utc="{{ order.cancelled_time.isoformat() + 'Z' }}" data-sep=", " data-no-year="true">{{ order.cancelled_time.strftime('%I:%M %p, %b %d') }}</span>
+                                    {% endif %}
+                                </p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="text-center mt-4">
+            <a href="{{ url_for('order_history') }}" class="btn btn-outline-primary">← Back to Order History</a>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</body>
+
+</html>

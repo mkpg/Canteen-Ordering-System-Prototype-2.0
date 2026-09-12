@@ -1,0 +1,188 @@
+{% include 'loader.html' %}
+{% include 'icons.html' %}
+<nav class="navbar navbar-expand-lg navbar-dark">
+    <div class="container">
+        <a class="navbar-brand" href="{{ url_for('menu') }}">
+            <span class="brand-icon"><svg>
+                    <use href="#icon-utensils" />
+                </svg></span> CanteenOs
+        </a>
+
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarMain"
+            aria-controls="navbarMain" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <div class="collapse navbar-collapse" id="navbarMain">
+            {% if logged_in_user %}
+            <ul class="navbar-nav ml-auto align-items-center">
+                <!-- Organization Badge -->
+                {% if current_org %}
+                <li class="nav-item mr-2">
+                    <span class="badge badge-light" style="font-size: 0.85rem; padding: 0.4rem 0.7rem;">
+                        {{ current_org.name }}
+                    </span>
+                </li>
+                {% endif %}
+
+                <!-- Menu Link -->
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('menu') }}">
+                        <span class="nav-icon"><svg>
+                                <use href="#icon-menu-book" />
+                            </svg></span> Menu
+                    </a>
+                </li>
+
+                <!-- Cart Link with Badge -->
+                <li class="nav-item cart-badge">
+                    <a class="nav-link" href="{{ url_for('checkout') }}">
+                        <span class="nav-icon"><svg>
+                                <use href="#icon-cart" />
+                            </svg></span> Cart
+                        {% if cart_count > 0 %}
+                        <span class="badge badge-danger">{{ cart_count }}</span>
+                        {% endif %}
+                    </a>
+                </li>
+
+                <!-- My Orders Link -->
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('order_history') }}">
+                        <span class="nav-icon"><svg>
+                                <use href="#icon-clipboard" />
+                            </svg></span> My Orders
+                    </a>
+                </li>
+
+                <!-- Core Admin Dashboard -->
+                {% if is_core_admin %}
+                <li class="nav-item">
+                    <a class="nav-link text-warning" href="{{ url_for('core_admin_dashboard') }}">
+                        <span class="nav-icon"><svg>
+                                <use href="#icon-shield" />
+                            </svg></span> Core Admin
+                    </a>
+                </li>
+                {% elif is_admin %}
+                <!-- Org Admin Dashboard -->
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('admin_dashboard') }}">
+                        <span class="nav-icon"><svg>
+                                <use href="#icon-bar-chart" />
+                            </svg></span> Admin
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('admin_settings') }}">
+                        <span class="nav-icon"><svg>
+                                <use href="#icon-settings" />
+                            </svg></span> Settings
+                    </a>
+                </li>
+                {% endif %}
+
+                <!-- Feedback Link -->
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('feedback') }}">
+                        <span class="nav-icon"><svg>
+                                <use href="#icon-star" />
+                            </svg></span> Feedback
+                    </a>
+                </li>
+
+                <!-- Profile Button - Links directly to profile page -->
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('profile') }}" title="My Profile">
+                        <div class="user-avatar" style="padding: 0; overflow: hidden;">
+                            <img src="{{ url_for('static', filename='images/avatars/' ~ user_avatar ~ '.png') }}"
+                                alt="Avatar" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover;">
+                        </div>
+                    </a>
+                </li>
+            </ul>
+            {% endif %}
+        </div>
+    </div>
+</nav>
+
+<!-- Flash Messages -->
+<div class="container mt-4">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    {% for category, message in messages %}
+    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+        </button>
+    </div>
+    {% endfor %}
+    {% endif %}
+    {% endwith %}
+</div>
+
+{% if is_admin and not is_core_admin %}
+<script>
+    let notifiedAlerts = new Set();
+    
+    // Request notification permission on load
+    if ("Notification" in window) {
+        if (Notification.permission !== "granted" && Notification.permission !== "denied") {
+            Notification.requestPermission();
+        }
+    }
+
+    function checkStockAlerts() {
+        fetch('/api/stock_alerts')
+            .then(res => res.json())
+            .then(data => {
+                if (data.alerts && data.alerts.length > 0) {
+                    data.alerts.forEach(alert => {
+                        // Only notify once per item threshold check
+                        if (!notifiedAlerts.has(alert.id)) {
+                            notifiedAlerts.add(alert.id);
+                            
+                            const msg = alert.stock <= 0 ? 
+                                `${alert.name} is completely out of stock!` : 
+                                `Low stock warning! ${alert.name} only has ${alert.stock} remaining.`;
+                                
+                            // Browser Push Notification (cross-tab visibility)
+                            if ("Notification" in window && Notification.permission === "granted") {
+                                new Notification("Stock Alert: " + alert.name, {
+                                    body: msg
+                                });
+                            }
+                            
+                            // Visual Toast / Alert 
+                            const alertDiv = document.createElement('div');
+                            alertDiv.className = `alert alert-${alert.stock <= 0 ? 'danger' : 'warning'} alert-dismissible fade show shadow-lg position-fixed`;
+                            alertDiv.style.bottom = '20px';
+                            alertDiv.style.right = '20px';
+                            alertDiv.style.zIndex = '9999';
+                            alertDiv.style.minWidth = '300px';
+                            alertDiv.innerHTML = `
+                                <strong>Stock Alert</strong><br>
+                                ${msg}
+                                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                                    <span aria-hidden="true">&times;</span>
+                                </button>
+                            `;
+                            document.body.appendChild(alertDiv);
+                            
+                            // Optional Chime
+                            const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+                            audio.volume = 0.5;
+                            audio.play().catch(e => {}); // Catch if browser blocks auto-play
+                        }
+                    });
+                }
+            })
+            .catch(err => console.error("Stock check failed"));
+    }
+
+    // Check immediately (after short delay), then every 30 seconds
+    setTimeout(checkStockAlerts, 2000);
+    setInterval(checkStockAlerts, 30000);
+</script>
+{% endif %}

@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Menu - CanteenOs</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+
+<body>
+    {% include 'navbar.html' %}
+    {% if is_admin %}
+    <div class="admin-banner text-center py-2">
+        <a href="{{ url_for('admin_dashboard') }}" class="btn btn-warning btn-sm mr-2">
+            <span class="btn-icon"><svg>
+                    <use href="#icon-bar-chart" />
+                </svg></span> Admin Dashboard
+        </a>
+        <a href="{{ url_for('admin_manage_menu') }}" class="btn btn-info btn-sm">
+            <span class="btn-icon"><svg>
+                    <use href="#icon-pizza" />
+                </svg></span> Manage Menu
+        </a>
+    </div>
+    {% endif %}
+
+    <div class="container my-4">
+        <!-- Page Header -->
+        <div class="page-header text-center mb-4">
+            <h1 class="menu-title"><span class="text-icon"><svg>
+                        <use href="#icon-plate" />
+                    </svg></span> Our Menu</h1>
+            <p class="menu-subtitle">Fresh & delicious food, made with love</p>
+        </div>
+
+        <!-- Search & Filter Bar -->
+        <div class="menu-controls mb-4">
+            <div class="row align-items-center">
+                <div class="col-md-6 mb-3 mb-md-0">
+                    <div class="search-box">
+                        <span class="search-icon"><svg>
+                                <use href="#icon-search" />
+                            </svg></span>
+                        <input type="text" id="searchInput" class="form-control search-input"
+                            placeholder="Search for food..." onkeyup="filterMenu()">
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="category-tabs">
+                        <button class="category-tab active" data-category="all" onclick="filterByCategory('all')">
+                            <svg>
+                                <use href="#icon-plate" />
+                            </svg> All
+                        </button>
+                        <button class="category-tab" data-category="breakfast" onclick="filterByCategory('breakfast')">
+                            <svg>
+                                <use href="#icon-egg" />
+                            </svg> Breakfast
+                        </button>
+                        <button class="category-tab" data-category="lunch" onclick="filterByCategory('lunch')">
+                            <svg>
+                                <use href="#icon-bowl" />
+                            </svg> Lunch
+                        </button>
+                        <button class="category-tab" data-category="snacks" onclick="filterByCategory('snacks')">
+                            <svg>
+                                <use href="#icon-cookie" />
+                            </svg> Snacks
+                        </button>
+                        <button class="category-tab" data-category="dinner" onclick="filterByCategory('dinner')">
+                            <svg>
+                                <use href="#icon-plate" />
+                            </svg> Dinner
+                        </button>
+                        <button class="category-tab" data-category="dessert" onclick="filterByCategory('dessert')">
+                            <svg>
+                                <use href="#icon-cookie" />
+                            </svg> Dessert
+                        </button>
+                        <button class="category-tab" data-category="beverages" onclick="filterByCategory('beverages')">
+                            <svg>
+                                <use href="#icon-coffee" />
+                            </svg> Drinks
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {% if menu_items and menu_items|length > 0 %}
+        <div class="row" id="menuGrid">
+            {% for item in menu_items %}
+            <div class="col-lg-4 col-md-6 col-12 menu-item-col" data-name="{{ item.name|lower }}"
+                data-category="{{ item.category|lower }}">
+                <div class="food-card" onclick="toggleMobileExpand(this, event)">
+                    <div class="food-image-wrapper">
+                        <img src="{{ item.image_url }}" alt="{{ item.name }}" class="food-image" loading="lazy"
+                            onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&h=300&fit=crop';">
+                        {% if loop.index <= 3 %} <span class="badge-popular"><svg>
+                                <use href="#icon-fire" />
+                            </svg> Popular</span>
+                            {% endif %}
+                    </div>
+                    <div class="food-content">
+                        <div class="food-header">
+                            <div class="food-header-main">
+                                <h5 class="food-name">{{ item.name }}</h5>
+                                <span class="food-category">{{ item.category|capitalize }}</span>
+                            </div>
+                            <div class="food-price-mobile">₹{{ item.price }}</div>
+                            {% if user_role == 'core_admin' and item.organization_id %}
+                            <span class="food-org-badge"
+                                style="display: block; font-size: 0.75rem; color: #667eea; font-weight: 600; margin-top: 4px;">
+                                <svg style="width: 12px; height: 12px; margin-right: 2px; vertical-align: middle;"
+                                    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                                    stroke="currentColor" stroke-width="2">
+                                    <rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect>
+                                    <path d="M9 22v-4h6v4"></path>
+                                </svg>
+                                {{ org_names.get(item.organization_id|string, 'Unknown Org') }}
+                            </span>
+                            {% endif %}
+                        </div>
+                        <p class="food-description">{{ item.description }}</p>
+                        <div class="food-price food-price-desktop">₹{{ item.price }}</div>
+                        
+                        {% if item.track_stock %}
+                            {% if item.stock <= 0 %}
+                                <div class="text-danger small font-weight-bold mt-2 mb-1" style="font-size: 0.8rem;">
+                                    <svg style="width: 12px; height: 12px; margin-right: 2px; vertical-align: -1px;" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line>
+                                    </svg> Unavailable (Out of Stock)
+                                </div>
+                            {% elif item.stock <= item.low_stock_threshold %}
+                                <div class="text-warning small font-weight-bold mt-2 mb-1" style="font-size: 0.8rem;">
+                                    <svg style="width: 12px; height: 12px; margin-right: 2px; vertical-align: -1px;"><use href="#icon-fire"/></svg> Going to over soon! Only {{ item.stock }} left
+                                </div>
+                            {% endif %}
+                        {% endif %}
+
+                        <!-- Mobile: Tap to expand hint -->
+                        <div class="mobile-tap-hint">
+                            <svg style="width: 16px; height: 16px;">
+                                <use href="#icon-plus" />
+                            </svg>
+                            Tap to order
+                        </div>
+
+                        <!-- Order form - hidden on mobile until expanded -->
+                        <form method="POST" action="{{ url_for('order') }}" class="order-form"
+                            onclick="event.stopPropagation()">
+                            <div class="quantity-control">
+                                <label class="qty-label"><span class="text-icon"><svg>
+                                            <use href="#icon-package" />
+                                        </svg></span> Quantity</label>
+                                <div class="qty-buttons">
+                                    <button type="button" class="qty-btn minus" onclick="changeQty(this, -1, {{ item.stock if item.track_stock else 20 }})">−</button>
+                                    <input type="number" name="quantity" min="1" max="{{ item.stock if item.track_stock else 20 }}" value="1" class="qty-input" readonly>
+                                    <button type="button" class="qty-btn plus" onclick="changeQty(this, 1, {{ item.stock if item.track_stock else 20 }})">+</button>
+                                </div>
+                            </div>
+
+                            <div class="custom-field">
+                                <label class="custom-label"><span class="text-icon"><svg>
+                                            <use href="#icon-edit" />
+                                        </svg></span> Notes</label>
+                                <input type="text" name="customizations" class="form-control custom-input"
+                                    placeholder="{{ item.customization_hint or 'E.g., less spicy' }}">
+                            </div>
+
+                            <input type="hidden" name="productName" value="{{ item.name }}">
+                            <input type="hidden" name="price" value="{{ item.price }}">
+                            
+                            {% if item.track_stock and item.stock <= 0 %}
+                            <button type="button" class="btn btn-secondary disabled mt-2" style="cursor: not-allowed; width: 100%; border-radius: 8px; font-weight: 600; padding: 0.5rem;">
+                                <span class="btn-icon"><svg style="width: 1.1rem; height: 1.1rem;"><use href="#icon-ban"/></svg></span> Out of Stock
+                            </button>
+                            {% else %}
+                            <button type="submit" class="btn btn-add-cart">
+                                <span class="btn-icon"><svg><use href="#icon-cart"/></svg></span> Add to Cart
+                            </button>
+                            {% endif %}
+                        </form>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- No Results Message -->
+        <div id="noResults" class="no-results" style="display: none;">
+            <div class="no-results-icon"><svg>
+                    <use href="#icon-search" />
+                </svg></div>
+            <h3>No items found</h3>
+            <p>Try a different search or category</p>
+        </div>
+
+        <!-- Cart Button -->
+        <div class="cart-float">
+            <a href="{{ url_for('checkout') }}" class="btn btn-cart-main">
+                <svg>
+                    <use href="#icon-cart" />
+                </svg> View Cart
+                {% if cart_count > 0 %}
+                <span class="cart-badge-float">{{ cart_count }}</span>
+                {% endif %}
+            </a>
+        </div>
+
+        {% else %}
+        <!-- Empty Menu State -->
+        <div class="empty-menu text-center py-5">
+            <div class="empty-icon"><svg>
+                    <use href="#icon-plate" />
+                </svg></div>
+            <h2>No Menu Items Yet</h2>
+            <p class="text-muted">The menu is currently being prepared.</p>
+            {% if is_admin %}
+            <a href="{{ url_for('admin_manage_menu') }}" class="btn btn-primary btn-lg mt-3">
+                <span class="btn-icon"><svg>
+                        <use href="#icon-plus" />
+                    </svg></span> Add Menu Items
+            </a>
+            {% else %}
+            <p class="mt-3">Please check back soon!</p>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-brand"><svg>
+                        <use href="#icon-utensils" />
+                    </svg> CanteenOs</div>
+                <div class="footer-links">
+                    <a href="{{ url_for('about') }}">About Us</a>
+                    <span>•</span>
+                    <a href="{{ url_for('feedback') }}">Feedback</a>
+                    <span>•</span>
+                    <a href="{{ url_for('order_history') }}">Orders</a>
+                </div>
+                <div class="footer-copy">© 2026 CanteenOs. Made with <svg>
+                        <use href="#icon-heart-filled" />
+                    </svg></div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        // Quantity +/- buttons
+        function changeQty(btn, delta, maxQty = 20) {
+            const input = btn.parentElement.querySelector('.qty-input');
+            let val = parseInt(input.value) + delta;
+            
+            // Cannot be less than 1 or greater than maxQty
+            if (val < 1) val = 1;
+            if (maxQty > 0 && val > maxQty) {
+                val = maxQty;
+                // Optional: flash red to indicate max
+                input.style.color = '#dc2626';
+                setTimeout(() => input.style.color = '', 300);
+            }
+            
+            input.value = val;
+        }
+
+        // Search filter
+        function filterMenu() {
+            const query = document.getElementById('searchInput').value.toLowerCase();
+            const items = document.querySelectorAll('.menu-item-col');
+            let visibleCount = 0;
+
+            items.forEach(item => {
+                const name = item.dataset.name;
+                if (name.includes(query)) {
+                    item.style.display = '';
+                    visibleCount++;
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+
+            document.getElementById('noResults').style.display = visibleCount === 0 ? 'block' : 'none';
+        }
+
+        // Category filter
+        let activeCategory = 'all';
+        function filterByCategory(category) {
+            activeCategory = category;
+            const items = document.querySelectorAll('.menu-item-col');
+            const tabs = document.querySelectorAll('.category-tab');
+            let visibleCount = 0;
+
+            tabs.forEach(tab => {
+                tab.classList.remove('active');
+                if (tab.dataset.category === category) {
+                    tab.classList.add('active');
+                }
+            });
+
+            items.forEach(item => {
+                if (category === 'all' || item.dataset.category === category) {
+                    item.style.display = '';
+                    visibleCount++;
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+
+            document.getElementById('noResults').style.display = visibleCount === 0 ? 'block' : 'none';
+        }
+
+        // Toggle expand/collapse for food cards (all devices)
+        function toggleMobileExpand(card, event) {
+            // Don't toggle if clicking on form elements
+            if (event.target.closest('form')) return;
+
+            // Close all other expanded cards
+            document.querySelectorAll('.food-card.mobile-expanded').forEach(c => {
+                if (c !== card) c.classList.remove('mobile-expanded');
+            });
+
+            // Toggle current card
+            card.classList.toggle('mobile-expanded');
+
+            // Scroll into view if expanded
+            if (card.classList.contains('mobile-expanded')) {
+                setTimeout(() => {
+                    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 100);
+            }
+        }
+    </script>
+</body>
+
+</html>

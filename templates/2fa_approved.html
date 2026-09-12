@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login Approved - CanteenOs</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <style>
+        body {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+        }
+
+        .result-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(74, 222, 128, 0.3);
+            border-radius: 24px;
+            padding: 3rem;
+            max-width: 450px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 25px 80px rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(10px);
+        }
+
+        .success-icon {
+            width: 120px;
+            height: 120px;
+            background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 2rem;
+            animation: successPop 0.5s ease-out;
+        }
+
+        @keyframes successPop {
+            0% {
+                transform: scale(0);
+                opacity: 0;
+            }
+
+            50% {
+                transform: scale(1.2);
+            }
+
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .success-icon svg {
+            width: 60px;
+            height: 60px;
+            fill: #1a1a2e;
+        }
+
+        .checkmark {
+            stroke: #1a1a2e;
+            stroke-width: 3;
+            fill: none;
+            animation: checkDraw 0.5s ease-out 0.3s forwards;
+            stroke-dasharray: 50;
+            stroke-dashoffset: 50;
+        }
+
+        @keyframes checkDraw {
+            to {
+                stroke-dashoffset: 0;
+            }
+        }
+
+        h2 {
+            color: #4ade80;
+            margin-bottom: 1rem;
+        }
+
+        p {
+            color: #a1a1aa;
+            font-size: 1.1rem;
+        }
+
+        .info-text {
+            color: #71717a;
+            font-size: 0.9rem;
+            margin-top: 2rem;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="result-card fade-in">
+        <div class="success-icon">
+            <svg viewBox="0 0 24 24">
+                <path class="checkmark" d="M5 12l5 5L19 7" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+        </div>
+
+        <h2>Login Approved! ✓</h2>
+        <p>Your login has been verified successfully.</p>
+        <p class="info-text">You can close this tab now. The login will complete automatically on your device.</p>
+    </div>
+</body>
+
+</html>

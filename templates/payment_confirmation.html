@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Order Confirmed - CanteenOs</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+
+<body>
+    {% include 'navbar.html' %}
+    <div class="container my-5">
+        <div class="card" style="max-width: 600px; margin: 0 auto;">
+            <div class="card-body text-center p-5">
+                <div class="mb-4">
+                    <span class="display-icon"><svg style="width: 5rem; height: 5rem; stroke: var(--success-color);">
+                            <use href="#icon-check-circle" />
+                        </svg></span>
+                </div>
+                <h2 class="text-success mb-3">Payment Successful!</h2>
+                <p class="text-muted mb-4">Your order has been placed and is being prepared.</p>
+
+                <div class="card mb-4">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">Order Summary</h5>
+                    </div>
+                    <div class="card-body">
+                        {% for order in orders %}
+                        <div class="d-flex justify-content-between py-2 border-bottom">
+                            <span>{{ order.product_name }} × {{ order.quantity }}</span>
+                            <span>₹{{ order.total_price }}</span>
+                        </div>
+                        {% endfor %}
+                        <div class="d-flex justify-content-between pt-3">
+                            <strong>Total Paid:</strong>
+                            <strong class="text-primary">₹{{ total_amount }}</strong>
+                        </div>
+                    </div>
+                </div>
+
+                <p class="text-muted">
+                    <small>You can track your order status from the Order History page.</small>
+                </p>
+
+                <div class="mt-4">
+                    <a href="{{ url_for('order_history') }}" class="btn btn-primary mr-2">
+                        <span class="btn-icon"><svg>
+                                <use href="#icon-clipboard" />
+                            </svg></span> Track Order
+                    </a>
+                    <a href="{{ url_for('menu') }}" class="btn btn-outline-primary">
+                        <span class="btn-icon"><svg>
+                                <use href="#icon-plate" />
+                            </svg></span> Order More
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</body>
+
+</html>
+
