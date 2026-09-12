@@ -186,3 +186,45 @@
     setInterval(checkStockAlerts, 30000);
 </script>
 {% endif %}
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // Convert UTC times to local time
+    
+    // e.g. "Sep 12, 2026"
+    document.querySelectorAll('.local-date').forEach(el => {
+        const utcStr = el.getAttribute('data-utc');
+        if (utcStr && utcStr !== 'NoneZ') {
+            const date = new Date(utcStr);
+            el.textContent = date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+        }
+    });
+    
+    // e.g. "9:53 AM"
+    document.querySelectorAll('.local-time').forEach(el => {
+        const utcStr = el.getAttribute('data-utc');
+        if (utcStr && utcStr !== 'NoneZ') {
+            const date = new Date(utcStr);
+            el.textContent = date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', hour12: true });
+        }
+    });
+
+    // e.g. "Sep 12, 2026 at 9:53 AM" or similar custom datetime formats
+    document.querySelectorAll('.local-datetime').forEach(el => {
+        const utcStr = el.getAttribute('data-utc');
+        if (utcStr && utcStr !== 'NoneZ') {
+            const date = new Date(utcStr);
+            // Check if there's a custom separator requested
+            const sep = el.getAttribute('data-sep') || ' at ';
+            const includeYear = el.getAttribute('data-no-year') !== 'true';
+            
+            const options = { month: 'short', day: 'numeric' };
+            if (includeYear) options.year = 'numeric';
+
+            const dateStr = date.toLocaleDateString(undefined, options);
+            const timeStr = date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', hour12: true });
+            el.textContent = dateStr + sep + timeStr;
+        }
+    });
+});
+</script>
